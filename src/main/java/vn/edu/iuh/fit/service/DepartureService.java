@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.Departure;import java.util.List;public interface DepartureService {    Departure createDeparture(Departure departure);    Departure getDepartureById(Long id);    List<Departure> getAllDepartures();    void updateDeparture(Departure departure);    void deleteDeparture(Long id);}

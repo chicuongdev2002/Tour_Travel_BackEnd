@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.service.implement;import vn.edu.iuh.fit.service.DestinationService;public class DestinationServiceImpl implements DestinationService {}
