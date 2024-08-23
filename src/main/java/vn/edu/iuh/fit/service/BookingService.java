@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.Booking;import java.util.List;public interface BookingService {    Booking createBooking(Booking booking);    Booking getBookingById(Long id);    List<Booking> getAllBookings();    void updateBooking(Booking booking);    void deleteBooking(Long id);}
