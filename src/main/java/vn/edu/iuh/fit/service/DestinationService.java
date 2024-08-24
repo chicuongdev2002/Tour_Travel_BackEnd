@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.Destination;import java.util.List;public interface DestinationService {    Destination createDestination(Destination destination);    Destination getDestinationById(Long id);    List<Destination> getAllDestinations();    void updateDestination(Destination destination);    void deleteDestination(Long id);}
+package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.Destination;import java.util.UUID;public interface DestinationService extends CrudService<Destination, UUID> {}

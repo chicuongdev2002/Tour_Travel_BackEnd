@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.TourPricing;import java.util.List;public interface TourPricingService {    TourPricing createTourPricing(TourPricing tourPricing);    TourPricing getTourPricingById(Long id);    List<TourPricing> getAllTourPricings();    void updateTourPricing(TourPricing tourPricing);    void deleteTourPricing(Long id);}
+package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.TourPricing;import java.util.UUID;public interface TourPricingService extends CrudService<TourPricing, UUID> {}
