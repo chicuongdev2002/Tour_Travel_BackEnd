@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto;import lombok.Data;import java.math.BigDecimal;import java.util.UUID;@Datapublic class TourSummaryDTO {    private UUID tourId;    private String tourName;    private String tourDescription;    private BigDecimal price;    private Integer duration;}

@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto;import java.util.UUID;import lombok.Data;@Datapublic class DestinationDTO {    private UUID destinationId;    private String name;    private String description;    private String province;}
