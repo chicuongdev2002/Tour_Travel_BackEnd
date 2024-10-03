@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto;import lombok.Getter;import lombok.Setter;import java.util.UUID;@Getter@Setterpublic class LoginResponse {    private UUID userId;    private String username;    private String message;}
