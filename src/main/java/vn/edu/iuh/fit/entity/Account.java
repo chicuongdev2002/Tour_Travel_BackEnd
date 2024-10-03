@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.entity;import jakarta.persistence.*;import lombok.*;import java.util.UUID;@Entity@Table(name = "accounts")@Getter@Setter@NoArgsConstructor@AllArgsConstructorpublic class Account {    @Id    @GeneratedValue()    private UUID accountId;    private String username;    private String password;}
