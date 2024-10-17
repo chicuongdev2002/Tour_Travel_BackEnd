@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.Review;import java.util.UUID;public interface ReviewService extends CrudService<Review, Long> {}

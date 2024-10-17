@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.repositories;import org.springframework.data.jpa.repository.JpaRepository;import vn.edu.iuh.fit.entity.TourPricing;public interface TourPricingRepository extends JpaRepository<TourPricing, Long> {}
+package vn.edu.iuh.fit.repositories;import org.springframework.data.jpa.repository.JpaRepository;import org.springframework.stereotype.Repository;import vn.edu.iuh.fit.entity.TourPricing;import java.util.UUID;@Repositorypublic interface TourPricingRepository extends JpaRepository<TourPricing, Long> {}

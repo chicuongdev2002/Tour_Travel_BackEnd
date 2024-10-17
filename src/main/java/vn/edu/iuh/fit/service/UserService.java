@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.User;import java.util.UUID;public interface UserService extends CrudService<User, UUID> {    User findByUsername(String username);    boolean existsByEmail(String email);}

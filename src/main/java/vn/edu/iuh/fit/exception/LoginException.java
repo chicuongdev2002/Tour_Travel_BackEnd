@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.exception;public class LoginException extends RuntimeException {    public LoginException(String message) {        super(message);    }}

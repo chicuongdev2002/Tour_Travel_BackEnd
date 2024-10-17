@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.service;import java.util.List;public interface CrudService<T, ID> {    T create(T entity);    T getById(ID id);    List<T> getAll();    void update(T entity);    void delete(ID id);}
