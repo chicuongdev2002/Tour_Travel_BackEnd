@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.enums;public enum PaymentMethod {    CASH("Cash"),    BANKING("Banking");    private final String method;    PaymentMethod(String method) {        this.method = method;    }    public String getDescription() {        return method;    }    @Override    public String toString() {        return this.name() + " (" + method + ")";    }}
