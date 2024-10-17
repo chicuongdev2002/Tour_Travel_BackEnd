@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.TourDestination;import vn.edu.iuh.fit.service.CrudService;import java.util.UUID;public interface TourDestinationService extends CrudService<TourDestination, UUID> {}
+package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.TourDestination;import vn.edu.iuh.fit.service.CrudService;import java.util.UUID;public interface TourDestinationService extends CrudService<TourDestination, Long> {}

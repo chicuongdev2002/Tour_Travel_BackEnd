@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.exception;public class EmailAlreadyExistsException extends RuntimeException {    public EmailAlreadyExistsException(String message) {        super(message);    }}
