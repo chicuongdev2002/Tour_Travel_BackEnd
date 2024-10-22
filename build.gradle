@@ -28,6 +28,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-hateoas'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation group: 'org.slf4j', name: 'slf4j-api'
     // https://mvnrepository.com/artifact/com.sun.mail/jakarta.mail
     implementation group: 'com.sun.mail', name: 'jakarta.mail', version: '2.0.1'
     // https://mvnrepository.com/artifact/jakarta.mail/jakarta.mail-api
