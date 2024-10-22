@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.dto;import java.util.UUID;import java.time.LocalDate;import lombok.Data;@Datapublic class ReviewDTO {    private UUID reviewId;    private String userName;    private int rating;    private String comment;    private LocalDate reviewDate;}
+package vn.edu.iuh.fit.dto;import java.util.UUID;import java.time.LocalDate;import lombok.Data;@Datapublic class ReviewDTO {    private long reviewId;    private String userName;    private int rating;    private String comment;    private LocalDate reviewDate;}

@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.dto;public class TourPricingDTO {}
+package vn.edu.iuh.fit.dto;import lombok.AllArgsConstructor;import lombok.Data;import lombok.NoArgsConstructor;import vn.edu.iuh.fit.enums.ParticipantType;import java.math.BigDecimal;import java.time.LocalDateTime;@Data@AllArgsConstructor@NoArgsConstructorpublic class TourPricingDTO {    private BigDecimal price;    private ParticipantType participantType;    private LocalDateTime modifiedDate;}
