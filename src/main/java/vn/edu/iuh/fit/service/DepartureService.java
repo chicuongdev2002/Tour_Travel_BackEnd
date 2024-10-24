@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.Departure;import java.util.UUID;public interface DepartureService extends CrudService<Departure, Long> {}
+package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.Departure;import java.util.UUID;public interface DepartureService extends CrudService<Departure, Long> {}

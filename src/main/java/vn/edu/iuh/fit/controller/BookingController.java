@@ -6,7 +6,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.entity.Booking;
 import vn.edu.iuh.fit.entity.Departure;
-import vn.edu.iuh.fit.entity.Tour;
 import vn.edu.iuh.fit.entity.User;
 import vn.edu.iuh.fit.service.BookingService;
 import vn.edu.iuh.fit.service.DepartureService;
@@ -30,17 +29,17 @@ public class BookingController {
     @PostMapping("/createBooking")
     public ResponseEntity<Booking> createBooking(@RequestParam long userId,
                                             @RequestParam long departureId,
-                                            @RequestParam int numberOfParticipants) {
+                                            @RequestParam String participants) {
         User user = userService.getById(userId);
         Departure departure = departureService.getById(departureId);
         Booking booking = Booking.builder()
                 .user(user)
                 .departure(departure)
                 .bookingDate(LocalDateTime.now())
-                .numberOfParticipants(numberOfParticipants)
+                .participants(participants)
                 .isActive(true)
                 .build();
-        Booking newBooking = bookingService.createBooking(booking);
+        Booking newBooking = bookingService.create(booking);
         return new ResponseEntity<>(newBooking, HttpStatus.CREATED);
     }
 

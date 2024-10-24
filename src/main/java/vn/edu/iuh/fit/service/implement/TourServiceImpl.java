@@ -4,7 +4,6 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import jakarta.annotation.PostConstruct;
 import org.hibernate.Hibernate;
@@ -17,13 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.hateoas.PagedModel;
-import org.springframework.data.web.PagedResourcesAssembler;
-import org.springframework.hateoas.server.RepresentationModelAssembler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -35,13 +30,11 @@ import vn.edu.iuh.fit.enums.TourType;
 import vn.edu.iuh.fit.exception.ResourceNotFoundException;
 import vn.edu.iuh.fit.repositories.TourPricingRepository;
 import vn.edu.iuh.fit.repositories.TourRepository;
-import vn.edu.iuh.fit.service.AbstractCrudService;
 import vn.edu.iuh.fit.service.TourService;
 
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -55,7 +48,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     @Autowired
     private TourPricingRepository tourPricingRepository;
     private final ModelMapper modelMapper;
-//    @Autowired
+    //    @Autowired
 //    private PagedResourcesAssembler<Tour> pagedResourcesAssembler;
     @Value("${aws.s3.bucket}")
     private String bucketName;
@@ -70,11 +63,13 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     private String region;
 
     private AmazonS3 s3Client;
+
     @Autowired
     public TourServiceImpl(TourRepository tourRepository, ModelMapper modelMapper) {
         this.tourRepository = tourRepository;
         this.modelMapper = modelMapper;
     }
+
     @PostConstruct
     public void initializeAmazonS3Client() {
         if (StringUtils.isEmpty(accessKey) || StringUtils.isEmpty(secretKey)) {
@@ -97,70 +92,70 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         return null;
     }
 
-@Override
-public Page<TourSummaryDTO> getTours(String keyword, int page, int size, BigDecimal minPrice, BigDecimal maxPrice,
-                                     String tourTypeStr, String startLocation, String participantTypeStr) {
-    Pageable pageable = PageRequest.of(page, size);
-    Page<Object[]> results;
+    @Override
+    public Page<TourSummaryDTO> getTours(String keyword, int page, int size, BigDecimal minPrice, BigDecimal maxPrice,
+                                         String tourTypeStr, String startLocation, String participantTypeStr) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Object[]> results;
 
-    TourType tourType = null;
-    ParticipantType participantType = null;
+        TourType tourType = null;
+        ParticipantType participantType = null;
 
-    if (tourTypeStr != null && !tourTypeStr.isEmpty()) {
-        try {
-            tourType = TourType.valueOf(tourTypeStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid tour type: " + tourTypeStr);
+        if (tourTypeStr != null && !tourTypeStr.isEmpty()) {
+            try {
+                tourType = TourType.valueOf(tourTypeStr.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid tour type: " + tourTypeStr);
+            }
         }
-    }
 
-    if (participantTypeStr != null && !participantTypeStr.isEmpty()) {
-        try {
-            participantType = ParticipantType.valueOf(participantTypeStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid participant type: " + participantTypeStr);
+        if (participantTypeStr != null && !participantTypeStr.isEmpty()) {
+            try {
+                participantType = ParticipantType.valueOf(participantTypeStr.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid participant type: " + participantTypeStr);
+            }
         }
+
+        if (keyword != null && !keyword.isEmpty()) {
+            // Tìm kiếm với từ khóa
+            results = tourRepository.findtTourByKeyword(keyword, pageable);
+        } else if (tourType != null || startLocation != null || participantType != null) {
+            // Tìm kiếm theo bộ lộc
+            results = tourRepository.searchTours(minPrice, maxPrice, tourType, startLocation, participantType, pageable);
+        } else {
+            // Lấy danh sách mặc định
+            results = tourRepository.findToursWithPriceRange(minPrice, maxPrice, pageable);
+        }
+
+        return results.map(result -> {
+            TourSummaryDTO dto = new TourSummaryDTO();
+            Tour tour = (Tour) result[0];
+            TourPricing tourPricing = (TourPricing) result[1];
+            LocalDateTime startDate = (LocalDateTime) result[2];
+            Integer availableSeats = (Integer) result[3];
+            Integer maxParticipants = (Integer) result[4];
+            String imageUrlsString = (String) result[5];
+            // Chuyển đổi chuỗi ảnh thành list
+            List<String> imageUrls = imageUrlsString != null ?
+                    Arrays.asList(imageUrlsString.split(",")) :
+                    Collections.emptyList();
+
+            // Chỉ lấy ảnh đầu tiên làm ảnh đại diện
+            String mainImageUrl = imageUrls.isEmpty() ? null : imageUrls.get(0);
+            dto.setTourId(tour.getTourId());
+            dto.setTourName(tour.getTourName());
+            dto.setTourDescription(tour.getTourDescription());
+            dto.setDuration(tour.getDuration());
+            dto.setStartLocation(tour.getStartLocation());
+            dto.setPrice(tourPricing.getPrice());
+            dto.setStartDate(startDate);
+            dto.setMaxParticipants(maxParticipants);
+            dto.setAvailableSeats(availableSeats);
+            dto.setImageUrl(mainImageUrl);
+            return dto;
+        });
     }
-
-    if (keyword != null && !keyword.isEmpty()) {
-        // Tìm kiếm với từ khóa
-        results = tourRepository.findtTourByKeyword(keyword, pageable);
-    } else if (tourType != null || startLocation != null || participantType != null) {
-        // Tìm kiếm theo bộ lộc
-        results = tourRepository.searchTours(minPrice, maxPrice, tourType, startLocation, participantType, pageable);
-    } else {
-        // Lấy danh sách mặc định
-        results = tourRepository.findToursWithPriceRange(minPrice, maxPrice, pageable);
-    }
-
-    return results.map(result -> {
-        TourSummaryDTO dto = new TourSummaryDTO();
-        Tour tour = (Tour) result[0];
-        TourPricing tourPricing = (TourPricing) result[1];
-        LocalDateTime startDate = (LocalDateTime) result[2];
-        Integer availableSeats = (Integer) result[3];
-        Integer maxParticipants = (Integer) result[4];
-        String imageUrlsString = (String) result[5];
-        // Chuyển đổi chuỗi ảnh thành list
-        List<String> imageUrls = imageUrlsString != null ?
-                Arrays.asList(imageUrlsString.split(",")) :
-                Collections.emptyList();
-
-        // Chỉ lấy ảnh đầu tiên làm ảnh đại diện
-        String mainImageUrl = imageUrls.isEmpty() ? null : imageUrls.get(0);
-        dto.setTourId(tour.getTourId());
-        dto.setTourName(tour.getTourName());
-        dto.setTourDescription(tour.getTourDescription());
-        dto.setDuration(tour.getDuration());
-        dto.setStartLocation(tour.getStartLocation());
-        dto.setPrice(tourPricing.getPrice());
-        dto.setStartDate(startDate);
-        dto.setMaxParticipants(maxParticipants);
-        dto.setAvailableSeats(availableSeats);
-        dto.setImageUrl(mainImageUrl);
-        return dto;
-    });
-}
 
     @PostConstruct
     public void initializeModelMapper() {
@@ -172,112 +167,113 @@ public Page<TourSummaryDTO> getTours(String keyword, int page, int size, BigDeci
     }
 
 
-@Cacheable("tour")
-public TourDetailDTO getTourById(long id) {
-    logger.info("Fetching tour with ID: {}", id);
+    @Cacheable("tour")
+    public TourDetailDTO getTourById(long id) {
+        logger.info("Fetching tour with ID: {}", id);
 
-    // Lấy Tour từ repository
-    Tour tour = tourRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Tour not found"));
+        // Lấy Tour từ repository
+        Tour tour = tourRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tour not found"));
 
-    // Khởi tạo các quan hệ để tránh lazy loading exception
-    Hibernate.initialize(tour.getDepartures());
-    Hibernate.initialize(tour.getImages()); // Khởi tạo hình ảnh
-    Hibernate.initialize(tour.getReviews()); // Khởi tạo đánh giá
-    logger.info("Number of Departures: {}", tour.getDepartures().size());
-    logger.info("Number of Images: {}", tour.getImages().size());
-    logger.info("Number of Reviews: {}", tour.getReviews().size());
+        // Khởi tạo các quan hệ để tránh lazy loading exception
+        Hibernate.initialize(tour.getDepartures());
+        Hibernate.initialize(tour.getImages()); // Khởi tạo hình ảnh
+        Hibernate.initialize(tour.getReviews()); // Khởi tạo đánh giá
+        logger.info("Number of Departures: {}", tour.getDepartures().size());
+        logger.info("Number of Images: {}", tour.getImages().size());
+        logger.info("Number of Reviews: {}", tour.getReviews().size());
 
-    // Lấy danh sách TourPricing cho các Departure
-    List<Long> departureIds = tour.getDepartures().stream()
-            .map(Departure::getDepartureId)
-            .collect(Collectors.toList());
+        // Lấy danh sách TourPricing cho các Departure
+        List<Long> departureIds = tour.getDepartures().stream()
+                .map(Departure::getDepartureId)
+                .collect(Collectors.toList());
 
-    List<TourPricing> tourPricings = tourPricingRepository.findTourPricingByDepartureIds(departureIds);
+        List<TourPricing> tourPricings = tourPricingRepository.findTourPricingByDepartureIds(departureIds);
 
-    // Tạo bản đồ để ánh xạ giá tour theo departureId
-    Map<Long, List<TourPricingDTO>> pricingMap = tourPricings.stream()
-            .map(pricing -> {
-                TourPricingDTO dto = new TourPricingDTO();
-                dto.setPrice(pricing.getPrice());
-                dto.setParticipantType(pricing.getParticipantType());
-                dto.setModifiedDate(pricing.getModifiedDate());
-                return new AbstractMap.SimpleEntry<>(pricing.getDeparture().getDepartureId(), dto);
-            })
-            .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+        // Tạo bản đồ để ánh xạ giá tour theo departureId
+        Map<Long, List<TourPricingDTO>> pricingMap = tourPricings.stream()
+                .map(pricing -> {
+                    TourPricingDTO dto = new TourPricingDTO();
+                    dto.setPrice(pricing.getPrice());
+                    dto.setParticipantType(pricing.getParticipantType());
+                    dto.setModifiedDate(pricing.getModifiedDate());
+                    return new AbstractMap.SimpleEntry<>(pricing.getDeparture().getDepartureId(), dto);
+                })
+                .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
 
-    // Ánh xạ destinations
-    List<DestinationDTO> destinationDTOs = tour.getTourDestinations().stream()
-            .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
-            .map(tourDestination -> {
-                Destination destination = tourDestination.getDestination();
-                return new DestinationDTO(
-                        destination.getDestinationId(),
-                        destination.getName(),
-                        destination.getDescription(),
-                        destination.getProvince(),
-                        tourDestination.getSequenceOrder(),
-                        tourDestination.getDuration()
-                );
-            })
-            .collect(Collectors.toList());
+        // Ánh xạ destinations
+        List<DestinationDTO> destinationDTOs = tour.getTourDestinations().stream()
+                .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
+                .map(tourDestination -> {
+                    Destination destination = tourDestination.getDestination();
+                    return new DestinationDTO(
+                            destination.getDestinationId(),
+                            destination.getName(),
+                            destination.getDescription(),
+                            destination.getProvince(),
+                            tourDestination.getSequenceOrder(),
+                            tourDestination.getDuration()
+                    );
+                })
+                .collect(Collectors.toList());
 
-    // Ánh xạ departures
-    List<DepartureDTO> departureDTOs = tour.getDepartures().stream()
-            .map(departure -> {
-                DepartureDTO departureDTO = new DepartureDTO();
-                departureDTO.setDepartureId(departure.getDepartureId());
-                departureDTO.setStartDate(departure.getStartDate());
-                departureDTO.setEndDate(departure.getEndDate());
-                departureDTO.setAvailableSeats(departure.getAvailableSeats());
-                departureDTO.setMaxParticipants(departure.getMaxParticipants());
+        // Ánh xạ departures
+        List<DepartureDTO> departureDTOs = tour.getDepartures().stream()
+                .map(departure -> {
+                    DepartureDTO departureDTO = new DepartureDTO();
+                    departureDTO.setDepartureId(departure.getDepartureId());
+                    departureDTO.setStartDate(departure.getStartDate());
+                    departureDTO.setEndDate(departure.getEndDate());
+                    departureDTO.setAvailableSeats(departure.getAvailableSeats());
+                    departureDTO.setMaxParticipants(departure.getMaxParticipants());
 
-                // Lấy danh sách TourPricing cho departure hiện tại
-                List<TourPricingDTO> tourPricingDTOs = pricingMap.getOrDefault(departure.getDepartureId(), List.of());
+                    // Lấy danh sách TourPricing cho departure hiện tại
+                    List<TourPricingDTO> tourPricingDTOs = pricingMap.getOrDefault(departure.getDepartureId(), List.of());
 
-                // Gán danh sách tourPricing vào departureDTO
-                departureDTO.setTourPricing(tourPricingDTOs);
+                    // Gán danh sách tourPricing vào departureDTO
+                    departureDTO.setTourPricing(tourPricingDTOs);
 
-                logger.info("Mapped DepartureDTO: {}", departureDTO);
-                return departureDTO;
-            })
-            .collect(Collectors.toList());
+                    logger.info("Mapped DepartureDTO: {}", departureDTO);
+                    return departureDTO;
+                })
+                .collect(Collectors.toList());
 
-    // Ánh xạ danh sách hình ảnh
-    List<ImageDTO> imageDTOs = tour.getImages().stream()
-            .map(image -> {
-                ImageDTO imageDTO = new ImageDTO();
-                imageDTO.setImageId(image.getImageId());
-                imageDTO.setImageUrl(image.getImageUrl());
-                return imageDTO;
-            })
-            .collect(Collectors.toList());
-    // Ánh xạ danh sách đánh giá
-    List<ReviewDTO> reviewDTOs = tour.getReviews().stream()
-            .map(review -> {
-                ReviewDTO reviewDTO = new ReviewDTO();
-                reviewDTO.setReviewId(review.getReviewId());
-                reviewDTO.setRating(review.getRating());
-                reviewDTO.setComment(review.getComment());
-                reviewDTO.setReviewDate(review.getReviewDate());
-                reviewDTO.setUserName(review.getUser() != null ? review.getUser().getFullName() : "");
-                return reviewDTO;
-            })
-            .collect(Collectors.toList());
-    // Gán danh sách departure, destination và images vào DTO
-    TourDetailDTO tourDetailDTO = modelMapper.map(tour, TourDetailDTO.class);
-    tourDetailDTO.setDepartures(departureDTOs);
-    tourDetailDTO.setDestinations(destinationDTOs);
-    tourDetailDTO.setImages(imageDTOs); // Gán danh sách hình ảnh
-    tourDetailDTO.setReviews(reviewDTOs); // Gán danh sách đánh giá
-    logger.info("Final TourDetailDTO: {}", tourDetailDTO);
-    return tourDetailDTO;
-}
+        // Ánh xạ danh sách hình ảnh
+        List<ImageDTO> imageDTOs = tour.getImages().stream()
+                .map(image -> {
+                    ImageDTO imageDTO = new ImageDTO();
+                    imageDTO.setImageId(image.getImageId());
+                    imageDTO.setImageUrl(image.getImageUrl());
+                    return imageDTO;
+                })
+                .collect(Collectors.toList());
+        // Ánh xạ danh sách đánh giá
+        List<ReviewDTO> reviewDTOs = tour.getReviews().stream()
+                .map(review -> {
+                    ReviewDTO reviewDTO = new ReviewDTO();
+                    reviewDTO.setReviewId(review.getReviewId());
+                    reviewDTO.setRating(review.getRating());
+                    reviewDTO.setComment(review.getComment());
+                    reviewDTO.setReviewDate(review.getReviewDate());
+                    reviewDTO.setUserName(review.getUser() != null ? review.getUser().getFullName() : "");
+                    return reviewDTO;
+                })
+                .collect(Collectors.toList());
+        // Gán danh sách departure, destination và images vào DTO
+        TourDetailDTO tourDetailDTO = modelMapper.map(tour, TourDetailDTO.class);
+        tourDetailDTO.setDepartures(departureDTOs);
+        tourDetailDTO.setDestinations(destinationDTOs);
+        tourDetailDTO.setImages(imageDTOs); // Gán danh sách hình ảnh
+        tourDetailDTO.setReviews(reviewDTOs); // Gán danh sách đánh giá
+        logger.info("Final TourDetailDTO: {}", tourDetailDTO);
+        return tourDetailDTO;
+    }
 
 
     public Tour convertDtoToEntity(TourDetailDTO tourDetailDTO) {
         return modelMapper.map(tourDetailDTO, Tour.class);
     }
+
     @Override
     public String uploadImageToAWS(File file, Tour tour) throws IOException {
         String fileName = UUID.randomUUID() + "_" + file.getName();
