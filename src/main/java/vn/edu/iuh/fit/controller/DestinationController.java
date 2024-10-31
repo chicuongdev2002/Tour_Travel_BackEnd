@@ -1,6 +1,7 @@
 package vn.edu.iuh.fit.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,5 +40,14 @@ public class DestinationController {
             destinations.add(destinationService.getById(tourDestination.getDestination().getDestinationId()));
         }
         return ResponseEntity.ok(destinations);
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<Page<Destination>> getPageBooking(@RequestParam(defaultValue = "0") int page,
+                                                        @RequestParam(defaultValue = "10") int size,
+                                                        @RequestParam(required = false) String sortBy,
+                                                        @RequestParam(required = false) String sortDirection){
+        Page<Destination> pageDestination = destinationService.getPageDestination(page, size, sortBy, sortDirection);
+        return new ResponseEntity<>(pageDestination, HttpStatus.OK);
     }
 }

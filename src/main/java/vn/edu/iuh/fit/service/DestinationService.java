@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.Destination;import java.util.UUID;public interface DestinationService extends CrudService<Destination, Long> {}
+package vn.edu.iuh.fit.service;import org.springframework.data.domain.Page;import vn.edu.iuh.fit.entity.Destination;import java.util.UUID;public interface DestinationService extends CrudService<Destination, Long> {    Page<Destination> getPageDestination(int page, int size, String sortBy, String sortDirection);}
