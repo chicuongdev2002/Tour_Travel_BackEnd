@@ -7,6 +7,7 @@ import lombok.Setter;
 import vn.edu.iuh.fit.entity.Departure;
 import vn.edu.iuh.fit.entity.Tour;
 import vn.edu.iuh.fit.entity.TourDestination;
+import vn.edu.iuh.fit.entity.TourPricing;
 import vn.edu.iuh.fit.enums.TourType;
 
 import java.time.LocalDateTime;
@@ -20,4 +21,5 @@ public class TourRequest {
     private Tour tour;
     private Departure departure;
     private List<TourDestination> tourDestinations;
+    private List<TourPricing> tourPricing;
 }
