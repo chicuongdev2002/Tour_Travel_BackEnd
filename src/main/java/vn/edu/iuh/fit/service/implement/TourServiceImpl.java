@@ -28,6 +28,8 @@ import vn.edu.iuh.fit.entity.*;
 import vn.edu.iuh.fit.enums.ParticipantType;
 import vn.edu.iuh.fit.enums.TourType;
 import vn.edu.iuh.fit.exception.ResourceNotFoundException;
+import vn.edu.iuh.fit.repositories.ImageRepository;
+import vn.edu.iuh.fit.repositories.TourGuideAssignmentRepository;
 import vn.edu.iuh.fit.repositories.TourPricingRepository;
 import vn.edu.iuh.fit.repositories.TourRepository;
 import vn.edu.iuh.fit.service.TourService;
@@ -47,6 +49,10 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     private TourRepository tourRepository;
     @Autowired
     private TourPricingRepository tourPricingRepository;
+    @Autowired
+    private TourGuideAssignmentRepository tourGuideAssignmentRepository;
+    @Autowired
+    private ImageRepository imageRepository;
     private final ModelMapper modelMapper;
     //    @Autowired
 //    private PagedResourcesAssembler<Tour> pagedResourcesAssembler;
@@ -69,7 +75,13 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         this.tourRepository = tourRepository;
         this.modelMapper = modelMapper;
     }
-
+    @Override
+    public List<TourSimpleDTO> getAllTours() {
+        List<Tour> tours = tourRepository.findAll();
+        return tours.stream()
+                .map(tour -> new TourSimpleDTO(tour.getTourId(), tour.getTourName()))
+                .collect(Collectors.toList());
+    }
     @PostConstruct
     public void initializeAmazonS3Client() {
         if (StringUtils.isEmpty(accessKey) || StringUtils.isEmpty(secretKey)) {
@@ -179,6 +191,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         Hibernate.initialize(tour.getDepartures());
         Hibernate.initialize(tour.getImages()); // Khởi tạo hình ảnh
         Hibernate.initialize(tour.getReviews()); // Khởi tạo đánh giá
+
         logger.info("Number of Departures: {}", tour.getDepartures().size());
         logger.info("Number of Images: {}", tour.getImages().size());
         logger.info("Number of Reviews: {}", tour.getReviews().size());
@@ -206,13 +219,27 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
                 .map(tourDestination -> {
                     Destination destination = tourDestination.getDestination();
+
+                    List<Image> images = imageRepository.findByDestinationId(destination.getDestinationId());
+
+                    logger.info("Destination {} has {} images",
+                            destination.getDestinationId(),
+                            images.size());
+
+                    // 3. Chuyển đổi và trả về DestinationDTO
                     return new DestinationDTO(
                             destination.getDestinationId(),
                             destination.getName(),
                             destination.getDescription(),
                             destination.getProvince(),
                             tourDestination.getSequenceOrder(),
-                            tourDestination.getDuration()
+                            tourDestination.getDuration(),
+                            images.stream()
+                                    .map(image -> new ImageDTO(
+                                            image.getImageId(),
+                                            image.getImageUrl()
+                                    ))
+                                    .collect(Collectors.toList())
                     );
                 })
                 .collect(Collectors.toList());
@@ -232,7 +259,19 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
 
                     // Gán danh sách tourPricing vào departureDTO
                     departureDTO.setTourPricing(tourPricingDTOs);
-
+                    // Lấy danh sách hướng dẫn viên cho departure hiện tại
+                    List<TourGuideAssignment> assignments = tourGuideAssignmentRepository.findByDeparture_DepartureId(departure.getDepartureId());
+                    List<TourGuideDTO> tourGuideDTOs = assignments.stream()
+                            .map(assignment -> {
+                                TourGuide guide = assignment.getTourGuide();
+                                TourGuideDTO guideDTO = new TourGuideDTO();
+                                guideDTO.setGuideId(guide.getUserId());
+                                guideDTO.setFullName(guide.getFullName());
+                                guideDTO.setExperienceYear(guide.getExperienceYear());
+                                return guideDTO;
+                            })
+                            .collect(Collectors.toList());
+                    departureDTO.setTourGuides(tourGuideDTOs);
                     logger.info("Mapped DepartureDTO: {}", departureDTO);
                     return departureDTO;
                 })
@@ -274,35 +313,45 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         return modelMapper.map(tourDetailDTO, Tour.class);
     }
 
-    @Override
-    public String uploadImageToAWS(File file, Tour tour) throws IOException {
-        String fileName = UUID.randomUUID() + "_" + file.getName();
+@Override
+public String uploadImageToAWS(File file, Tour tour, Destination destination) throws IOException {
+    String fileName = UUID.randomUUID() + "_" + file.getName();
 
-        try {
-            s3Client.putObject(new PutObjectRequest(bucketName, fileName, file));
-//                    .withCannedAcl(CannedAccessControlList.PublicRead);
+    try {
+        // Tải lên hình ảnh lên AWS S3
+        s3Client.putObject(new PutObjectRequest(bucketName, fileName, file));
 
-            String fileUrl = s3Client.getUrl(bucketName, fileName).toString();
+        String fileUrl = s3Client.getUrl(bucketName, fileName).toString();
 
-            Image image = new Image();
-            if (tour.getImages() == null) {
-                tour.setImages(new HashSet<>());
-            }
-            image.setImageUrl(fileUrl);
-            image.setTour(tour);
-            tour.getImages().add(image);
-            tourRepository.save(tour);
+        // Kiểm tra tour đã được lưu hay chưa
+        if (tour.getTourId() == 0) {
+            tour = tourRepository.save(tour); // Lưu tour nếu tourId bằng 0
+        }
 
-            return fileUrl;
-        } catch (Exception e) {
-            throw new IOException("Error uploading image: " + e.getMessage(), e);
-        } finally {
-            // Dọn dẹp file tạm thời nếu cần
-            if (file.exists()) {
-                file.delete();
-            }
+        Image image = new Image();
+        image.setImageUrl(fileUrl);
+        image.setTour(tour);
+        image.setDestination(destination);
+
+        // Khởi tạo tập hợp hình ảnh nếu cần
+        if (tour.getImages() == null) {
+            tour.setImages(new HashSet<>());
+        }
+
+        // Thêm hình ảnh vào tour
+        tour.getImages().add(image);
+        imageRepository.save(image); // Lưu hình ảnh vào cơ sở dữ liệu
+
+        return fileUrl;
+    } catch (Exception e) {
+        throw new IOException("Error uploading image: " + e.getMessage(), e);
+    } finally {
+        // Dọn dẹp file tạm thời nếu cần
+        if (file.exists()) {
+            file.delete();
         }
     }
+}
 
     // Phương thức chuyển đổi MultipartFile thành File
     @Override

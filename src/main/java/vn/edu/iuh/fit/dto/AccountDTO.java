@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.dto;public class AccountDTO {}
+package vn.edu.iuh.fit.dto;import jakarta.persistence.*;import lombok.AllArgsConstructor;import lombok.Data;import lombok.NoArgsConstructor;import vn.edu.iuh.fit.entity.User;import vn.edu.iuh.fit.enums.AccountRole;@Data@AllArgsConstructor@NoArgsConstructorpublic class AccountDTO {    private long userId;    private String username;    private String password;    private AccountRole role;    private boolean isActive;    private String fullName;}

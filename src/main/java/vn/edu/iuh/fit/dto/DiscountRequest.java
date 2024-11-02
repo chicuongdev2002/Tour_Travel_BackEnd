@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.dto;public class DiscountRequest {}
+package vn.edu.iuh.fit.dto;import lombok.AllArgsConstructor;import lombok.Data;import lombok.NoArgsConstructor;import java.time.LocalDateTime;@Data@AllArgsConstructor@NoArgsConstructorpublic class DiscountRequest {    private Long discountAmount;    private LocalDateTime startDate;    private LocalDateTime endDate;    private Integer countUse;}
