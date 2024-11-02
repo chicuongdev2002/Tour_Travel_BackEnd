@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.repositories;public interface AddressRepository extends org.springframework.data.jpa.repository.JpaRepository<vn.edu.iuh.fit.entity.Address, java.lang.Long> {}

@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.repositories;public interface ImageRepository extends org.springframework.data.jpa.repository.JpaRepository<vn.edu.iuh.fit.entity.Image, java.lang.Long> {}
