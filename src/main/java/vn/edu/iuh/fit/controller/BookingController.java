@@ -59,4 +59,14 @@ public class BookingController {
         Page<Booking> pageBooking = bookingService.getPageBooking(page, size, sortBy, sortDirection);
         return new ResponseEntity<>(pageBooking, HttpStatus.OK);
     }
+
+    @PutMapping("/updateStatus")
+    public ResponseEntity<String> updateStatusBooking(@RequestParam long bookingId){
+        Booking booking = bookingService.getById(bookingId);
+        if(booking == null)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Không tìm thấy đơn đặt tour");
+        booking.setActive(!booking.isActive());
+        bookingService.update(booking);
+        return ResponseEntity.status(HttpStatus.OK).body("Update thành công");
+    }
 }
