@@ -28,6 +28,8 @@ import vn.edu.iuh.fit.entity.*;
 import vn.edu.iuh.fit.enums.ParticipantType;
 import vn.edu.iuh.fit.enums.TourType;
 import vn.edu.iuh.fit.exception.ResourceNotFoundException;
+import vn.edu.iuh.fit.repositories.ImageRepository;
+import vn.edu.iuh.fit.repositories.TourGuideAssignmentRepository;
 import vn.edu.iuh.fit.repositories.TourPricingRepository;
 import vn.edu.iuh.fit.repositories.TourRepository;
 import vn.edu.iuh.fit.service.TourService;
@@ -35,6 +37,7 @@ import vn.edu.iuh.fit.service.TourService;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -47,6 +50,10 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     private TourRepository tourRepository;
     @Autowired
     private TourPricingRepository tourPricingRepository;
+    @Autowired
+    private TourGuideAssignmentRepository tourGuideAssignmentRepository;
+    @Autowired
+    private ImageRepository imageRepository;
     private final ModelMapper modelMapper;
     //    @Autowired
 //    private PagedResourcesAssembler<Tour> pagedResourcesAssembler;
@@ -68,6 +75,14 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     public TourServiceImpl(TourRepository tourRepository, ModelMapper modelMapper) {
         this.tourRepository = tourRepository;
         this.modelMapper = modelMapper;
+    }
+
+    @Override
+    public List<TourSimpleDTO> getAllTours() {
+        List<Tour> tours = tourRepository.findAll();
+        return tours.stream()
+                .map(tour -> new TourSimpleDTO(tour.getTourId(), tour.getTourName()))
+                .collect(Collectors.toList());
     }
 
     @PostConstruct
@@ -167,7 +182,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     }
 
 
-//    @Cacheable("tour")
+    //    @Cacheable("tour")
     public TourDetailDTO getTourById(long id) {
         logger.info("Fetching tour with ID: {}", id);
 
@@ -179,6 +194,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         Hibernate.initialize(tour.getDepartures());
         Hibernate.initialize(tour.getImages()); // Khởi tạo hình ảnh
         Hibernate.initialize(tour.getReviews()); // Khởi tạo đánh giá
+
         logger.info("Number of Departures: {}", tour.getDepartures().size());
         logger.info("Number of Images: {}", tour.getImages().size());
         logger.info("Number of Reviews: {}", tour.getReviews().size());
@@ -207,13 +223,27 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 .filter(td -> td.getSequenceOrder() > 0)
                 .map(tourDestination -> {
                     Destination destination = tourDestination.getDestination();
+
+                    List<Image> images = imageRepository.findByDestinationId(destination.getDestinationId());
+
+                    logger.info("Destination {} has {} images",
+                            destination.getDestinationId(),
+                            images.size());
+
+                    // 3. Chuyển đổi và trả về DestinationDTO
                     return new DestinationDTO(
                             destination.getDestinationId(),
                             destination.getName(),
                             destination.getDescription(),
                             destination.getProvince(),
                             tourDestination.getSequenceOrder(),
-                            tourDestination.getDuration()
+                            tourDestination.getDuration(),
+                            images.stream()
+                                    .map(image -> new ImageDTO(
+                                            image.getImageId(),
+                                            image.getImageUrl()
+                                    ))
+                                    .collect(Collectors.toList())
                     );
                 })
                 .collect(Collectors.toList());
@@ -221,7 +251,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         // Ánh xạ departures
         List<DepartureDTO> departureDTOs = new ArrayList<>();
         for (Departure departure : tour.getDepartures()) {
-            if(departure.isActive()) {
+            if (departure.isActive()) {
                 DepartureDTO departureDTO = new DepartureDTO();
                 departureDTO.setDepartureId(departure.getDepartureId());
                 departureDTO.setStartDate(departure.getStartDate());
@@ -234,7 +264,19 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
 
                 // Gán danh sách tourPricing vào departureDTO
                 departureDTO.setTourPricing(tourPricingDTOs);
-
+                // Lấy danh sách hướng dẫn viên cho departure hiện tại
+                List<TourGuideAssignment> assignments = tourGuideAssignmentRepository.findByDeparture_DepartureId(departure.getDepartureId());
+                List<TourGuideDTO> tourGuideDTOs = assignments.stream()
+                        .map(assignment -> {
+                            TourGuide guide = assignment.getTourGuide();
+                            TourGuideDTO guideDTO = new TourGuideDTO();
+                            guideDTO.setGuideId(guide.getUserId());
+                            guideDTO.setFullName(guide.getFullName());
+                            guideDTO.setExperienceYear(guide.getExperienceYear());
+                            return guideDTO;
+                        })
+                        .collect(Collectors.toList());
+                departureDTO.setTourGuides(tourGuideDTOs);
                 logger.info("Mapped DepartureDTO: {}", departureDTO);
                 departureDTOs.add(departureDTO);
             }
@@ -276,14 +318,13 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         return modelMapper.map(tourDetailDTO, Tour.class);
     }
 
+
     @Override
     public String uploadImageToAWS(File file) throws IOException {
         String fileName = UUID.randomUUID() + "_" + file.getName();
-
         try {
             // Tải lên hình ảnh lên AWS S3
             s3Client.putObject(new PutObjectRequest(bucketName, fileName, file));
-
             String fileUrl = s3Client.getUrl(bucketName, fileName).toString();
             return fileUrl;
         } catch (Exception e) {
@@ -306,13 +347,34 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     }
 
     @Override
+    public List<TourWithDeparturesDTO> getAllToursAndDeparture() {
+        List<Tour> tours = tourRepository.findAll();
+        LocalDate currentDate = LocalDate.now();
+        LocalDateTime currentDateTime = currentDate.atStartOfDay();
+        return tours.stream().map(tour -> {
+            List<DepartureByTourDTO> departureDTOs = tour.getDepartures().stream()
+                    .filter(departure -> departure.getStartDate().isAfter(currentDateTime))
+                    .map(departure -> {
+                        DepartureByTourDTO departureDTO = new DepartureByTourDTO();
+                        departureDTO.setDepartureId(departure.getDepartureId());
+                        departureDTO.setStartDate(departure.getStartDate());
+                        departureDTO.setEndDate(departure.getEndDate());
+                        departureDTO.setAvailableSeats(departure.getAvailableSeats());
+                        departureDTO.setMaxParticipants(departure.getMaxParticipants());
+                        return departureDTO;
+                    }).collect(Collectors.toList());
+
+            return new TourWithDeparturesDTO(
+                    tour.getTourId(),
+                    tour.getTourName(),
+                    tour.getTourType().name(),
+                    departureDTOs
+            );
+        }).collect(Collectors.toList());
+    }
+
+    @Override
     public TourInfoDTO convertToDTO(Tour tour) {
         return modelMapper.map(tour, TourInfoDTO.class);
     }
-
-//    @Override
-//    public List<Tour> searchTours(String keyword) {
-//        return tourRepository.findByTourNameContainingIgnoreCaseOrStartLocationContainingIgnoreCase(keyword, keyword);
-//    }
-
 }
