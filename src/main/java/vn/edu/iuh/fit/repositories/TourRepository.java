@@ -68,21 +68,43 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
                                @Param("startLocation") String startLocation,
                                @Param("participantType") ParticipantType participantType,
                                Pageable pageable);
+//    @Query("SELECT  t, tp, d.startDate,d.availableSeats, i.imageUrl FROM Tour t " +
+//            "JOIN Departure d ON d.tour.tourId = t.tourId " +
+//            "JOIN TourPricing tp ON d.departureId = tp.departure.departureId " +
+//            "LEFT JOIN Image i ON i.tour.tourId = t.tourId " +
+//            "WHERE tp.price BETWEEN :minPrice AND :maxPrice")
+//    Page<Object[]> findToursWithPriceRange(@Param("minPrice") BigDecimal minPrice,
+//                                           @Param("maxPrice") BigDecimal maxPrice,
+//                                           Pageable pageable);
     @EntityGraph(attributePaths = {"departures", "tourDestinations", "reviews"})
     Optional<Tour> findById(long id);
     //Tìm kiếm tour theo tên tour hoặc địa điểm bắt đầu
     List<Tour> findByTourNameContainingIgnoreCaseOrStartLocationContainingIgnoreCase(String tourName, String startLocation);
+//    @Query("SELECT  t, tp, d.startDate, d.availableSeats, i.imageUrl FROM Tour t " +
+//            "JOIN Departure d ON d.tour.tourId = t.tourId " +
+//            "JOIN TourPricing tp ON d.departureId = tp.departure.departureId " +
+//            "LEFT JOIN Image i ON i.tour.tourId = t.tourId " +
+//            "WHERE(LOWER(t.tourName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+//            "OR LOWER(t.startLocation) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+//    Page<Object[]> findtTourByKeyword(@Param("keyword") String keyword,Pageable pageable);
+//    // Phương thức tìm kiếm tour theo nhiều tiêu chí
+//    @Query("SELECT  t, tp, d.startDate, d.availableSeats, i.imageUrl FROM Tour t " +
+//            "JOIN Departure d ON d.tour.tourId = t.tourId " +
+//            "JOIN TourPricing tp ON d.departureId = tp.departure.departureId " +
+//            "LEFT JOIN Image i ON i.tour.tourId = t.tourId " +
+//            "WHERE (:minPrice IS NULL OR tp.price >= :minPrice) " +
+//            "AND (:maxPrice IS NULL OR tp.price <= :maxPrice) " +
+//            "AND (:tourType IS NULL OR t.tourType = :tourType) " +
+//            "AND (:startLocation IS NULL OR LOWER(t.startLocation) LIKE LOWER(CONCAT('%', :startLocation, '%'))) " +
+//            "AND (:participantType IS NULL OR tp.participantType = :participantType)")
+//    Page<Object[]> searchTours(@Param("minPrice") BigDecimal minPrice,
+//                               @Param("maxPrice") BigDecimal maxPrice,
+//                               @Param("tourType") TourType tourType,
+//                               @Param("startLocation") String startLocation,
+//                               @Param("participantType") ParticipantType participantType,
+//                               Pageable pageable);
 
-    @Query("SELECT DISTINCT t FROM Tour t " +
-            "LEFT JOIN FETCH t.departures d " +
-            "LEFT JOIN FETCH t.images " +
-            "LEFT JOIN FETCH t.reviews r " +
-            "LEFT JOIN FETCH r.user " +
-            "LEFT JOIN FETCH t.tourDestinations td " +
-            "LEFT JOIN FETCH td.destination dest " +
-            "LEFT JOIN FETCH dest.images " +
-            "WHERE t.tourId = :id")
-    Optional<Tour> findTourWithAllDetails(@Param("id") Long id);
+
     @Query("SELECT COUNT(tp) FROM TourPricing tp WHERE tp.departure.departureId IN :departureIds")
     long countTourPricingsByDepartureIds(@Param("departureIds") List<Long> departureIds);
 }

@@ -1,1 +1,0 @@
-package vn.edu.iuh.fit.dto;import lombok.AllArgsConstructor;import lombok.Data;import lombok.NoArgsConstructor;import vn.edu.iuh.fit.enums.AccountRole;import java.util.List;@Data@NoArgsConstructor@AllArgsConstructorpublic class UserAccountInfoDTO extends UserInfoDTO {    private AccountRole accountRole;}

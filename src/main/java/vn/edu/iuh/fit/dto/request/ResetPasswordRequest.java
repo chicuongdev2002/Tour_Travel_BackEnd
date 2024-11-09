@@ -1,1 +1,0 @@
-package vn.edu.iuh.fit.dto.request;import lombok.Data;@Datapublic class ResetPasswordRequest {    private Long[] userIds;}

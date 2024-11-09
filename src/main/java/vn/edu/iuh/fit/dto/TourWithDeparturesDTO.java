@@ -1,1 +1,0 @@
-package vn.edu.iuh.fit.dto;import lombok.AllArgsConstructor;import lombok.Data;import lombok.NoArgsConstructor;import java.util.List;@Data@NoArgsConstructor@AllArgsConstructorpublic class TourWithDeparturesDTO {    private long tourId;    private String tourName;    private String tourType;    private List<DepartureByTourDTO> departures;}
