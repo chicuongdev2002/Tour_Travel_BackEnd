@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.exception;public class AccountLockedException extends RuntimeException {    public AccountLockedException(String message) {        super(message);    }}
