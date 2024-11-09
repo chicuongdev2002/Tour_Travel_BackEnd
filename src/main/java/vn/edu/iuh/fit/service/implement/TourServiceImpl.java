@@ -119,7 +119,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
 
         if (keyword != null && !keyword.isEmpty()) {
             // Tìm kiếm với từ khóa
-            results = tourRepository.findtTourByKeyword(keyword, pageable);
+            results = tourRepository.findTourByKeyword(keyword, pageable);
         } else if (tourType != null || startLocation != null || participantType != null) {
             // Tìm kiếm theo bộ lộc
             results = tourRepository.searchTours(minPrice, maxPrice, tourType, startLocation, participantType, pageable);
@@ -167,7 +167,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     }
 
 
-    @Cacheable("tour")
+//    @Cacheable("tour")
     public TourDetailDTO getTourById(long id) {
         logger.info("Fetching tour with ID: {}", id);
 
@@ -204,6 +204,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         // Ánh xạ destinations
         List<DestinationDTO> destinationDTOs = tour.getTourDestinations().stream()
                 .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
+                .filter(td -> td.getSequenceOrder() > 0)
                 .map(tourDestination -> {
                     Destination destination = tourDestination.getDestination();
                     return new DestinationDTO(
@@ -218,25 +219,26 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 .collect(Collectors.toList());
 
         // Ánh xạ departures
-        List<DepartureDTO> departureDTOs = tour.getDepartures().stream()
-                .map(departure -> {
-                    DepartureDTO departureDTO = new DepartureDTO();
-                    departureDTO.setDepartureId(departure.getDepartureId());
-                    departureDTO.setStartDate(departure.getStartDate());
-                    departureDTO.setEndDate(departure.getEndDate());
-                    departureDTO.setAvailableSeats(departure.getAvailableSeats());
-                    departureDTO.setMaxParticipants(departure.getMaxParticipants());
+        List<DepartureDTO> departureDTOs = new ArrayList<>();
+        for (Departure departure : tour.getDepartures()) {
+            if(departure.isActive()) {
+                DepartureDTO departureDTO = new DepartureDTO();
+                departureDTO.setDepartureId(departure.getDepartureId());
+                departureDTO.setStartDate(departure.getStartDate());
+                departureDTO.setEndDate(departure.getEndDate());
+                departureDTO.setAvailableSeats(departure.getAvailableSeats());
+                departureDTO.setMaxParticipants(departure.getMaxParticipants());
 
-                    // Lấy danh sách TourPricing cho departure hiện tại
-                    List<TourPricingDTO> tourPricingDTOs = pricingMap.getOrDefault(departure.getDepartureId(), List.of());
+                // Lấy danh sách TourPricing cho departure hiện tại
+                List<TourPricingDTO> tourPricingDTOs = pricingMap.getOrDefault(departure.getDepartureId(), List.of());
 
-                    // Gán danh sách tourPricing vào departureDTO
-                    departureDTO.setTourPricing(tourPricingDTOs);
+                // Gán danh sách tourPricing vào departureDTO
+                departureDTO.setTourPricing(tourPricingDTOs);
 
-                    logger.info("Mapped DepartureDTO: {}", departureDTO);
-                    return departureDTO;
-                })
-                .collect(Collectors.toList());
+                logger.info("Mapped DepartureDTO: {}", departureDTO);
+                departureDTOs.add(departureDTO);
+            }
+        }
 
         // Ánh xạ danh sách hình ảnh
         List<ImageDTO> imageDTOs = tour.getImages().stream()
@@ -275,24 +277,14 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     }
 
     @Override
-    public String uploadImageToAWS(File file, Tour tour) throws IOException {
+    public String uploadImageToAWS(File file) throws IOException {
         String fileName = UUID.randomUUID() + "_" + file.getName();
 
         try {
+            // Tải lên hình ảnh lên AWS S3
             s3Client.putObject(new PutObjectRequest(bucketName, fileName, file));
-//                    .withCannedAcl(CannedAccessControlList.PublicRead);
 
             String fileUrl = s3Client.getUrl(bucketName, fileName).toString();
-
-            Image image = new Image();
-            if (tour.getImages() == null) {
-                tour.setImages(new HashSet<>());
-            }
-            image.setImageUrl(fileUrl);
-            image.setTour(tour);
-            tour.getImages().add(image);
-            tourRepository.save(tour);
-
             return fileUrl;
         } catch (Exception e) {
             throw new IOException("Error uploading image: " + e.getMessage(), e);
@@ -311,6 +303,11 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         file.transferTo(convFile);
         System.out.println("File được tạo: " + convFile.getAbsolutePath());
         return convFile;
+    }
+
+    @Override
+    public TourInfoDTO convertToDTO(Tour tour) {
+        return modelMapper.map(tour, TourInfoDTO.class);
     }
 
 //    @Override
