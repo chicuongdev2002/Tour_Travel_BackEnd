@@ -76,6 +76,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         this.tourRepository = tourRepository;
         this.modelMapper = modelMapper;
     }
+
     @Override
     public List<TourSimpleDTO> getAllTours() {
         List<Tour> tours = tourRepository.findAll();
@@ -83,6 +84,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 .map(tour -> new TourSimpleDTO(tour.getTourId(), tour.getTourName()))
                 .collect(Collectors.toList());
     }
+
     @PostConstruct
     public void initializeAmazonS3Client() {
         if (StringUtils.isEmpty(accessKey) || StringUtils.isEmpty(secretKey)) {
@@ -132,7 +134,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
 
         if (keyword != null && !keyword.isEmpty()) {
             // Tìm kiếm với từ khóa
-            results = tourRepository.findtTourByKeyword(keyword, pageable);
+            results = tourRepository.findTourByKeyword(keyword, pageable);
         } else if (tourType != null || startLocation != null || participantType != null) {
             // Tìm kiếm theo bộ lộc
             results = tourRepository.searchTours(minPrice, maxPrice, tourType, startLocation, participantType, pageable);
@@ -180,7 +182,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     }
 
 
-    @Cacheable("tour")
+    //    @Cacheable("tour")
     public TourDetailDTO getTourById(long id) {
         logger.info("Fetching tour with ID: {}", id);
 
@@ -218,6 +220,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         // Ánh xạ destinations
         List<DestinationDTO> destinationDTOs = tour.getTourDestinations().stream()
                 .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
+                .filter(td -> td.getSequenceOrder() > 0)
                 .map(tourDestination -> {
                     Destination destination = tourDestination.getDestination();
 
@@ -246,37 +249,38 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 .collect(Collectors.toList());
 
         // Ánh xạ departures
-        List<DepartureDTO> departureDTOs = tour.getDepartures().stream()
-                .map(departure -> {
-                    DepartureDTO departureDTO = new DepartureDTO();
-                    departureDTO.setDepartureId(departure.getDepartureId());
-                    departureDTO.setStartDate(departure.getStartDate());
-                    departureDTO.setEndDate(departure.getEndDate());
-                    departureDTO.setAvailableSeats(departure.getAvailableSeats());
-                    departureDTO.setMaxParticipants(departure.getMaxParticipants());
+        List<DepartureDTO> departureDTOs = new ArrayList<>();
+        for (Departure departure : tour.getDepartures()) {
+            if (departure.isActive()) {
+                DepartureDTO departureDTO = new DepartureDTO();
+                departureDTO.setDepartureId(departure.getDepartureId());
+                departureDTO.setStartDate(departure.getStartDate());
+                departureDTO.setEndDate(departure.getEndDate());
+                departureDTO.setAvailableSeats(departure.getAvailableSeats());
+                departureDTO.setMaxParticipants(departure.getMaxParticipants());
 
-                    // Lấy danh sách TourPricing cho departure hiện tại
-                    List<TourPricingDTO> tourPricingDTOs = pricingMap.getOrDefault(departure.getDepartureId(), List.of());
+                // Lấy danh sách TourPricing cho departure hiện tại
+                List<TourPricingDTO> tourPricingDTOs = pricingMap.getOrDefault(departure.getDepartureId(), List.of());
 
-                    // Gán danh sách tourPricing vào departureDTO
-                    departureDTO.setTourPricing(tourPricingDTOs);
-                    // Lấy danh sách hướng dẫn viên cho departure hiện tại
-                    List<TourGuideAssignment> assignments = tourGuideAssignmentRepository.findByDeparture_DepartureId(departure.getDepartureId());
-                    List<TourGuideDTO> tourGuideDTOs = assignments.stream()
-                            .map(assignment -> {
-                                TourGuide guide = assignment.getTourGuide();
-                                TourGuideDTO guideDTO = new TourGuideDTO();
-                                guideDTO.setGuideId(guide.getUserId());
-                                guideDTO.setFullName(guide.getFullName());
-                                guideDTO.setExperienceYear(guide.getExperienceYear());
-                                return guideDTO;
-                            })
-                            .collect(Collectors.toList());
-                    departureDTO.setTourGuides(tourGuideDTOs);
-                    logger.info("Mapped DepartureDTO: {}", departureDTO);
-                    return departureDTO;
-                })
-                .collect(Collectors.toList());
+                // Gán danh sách tourPricing vào departureDTO
+                departureDTO.setTourPricing(tourPricingDTOs);
+                // Lấy danh sách hướng dẫn viên cho departure hiện tại
+                List<TourGuideAssignment> assignments = tourGuideAssignmentRepository.findByDeparture_DepartureId(departure.getDepartureId());
+                List<TourGuideDTO> tourGuideDTOs = assignments.stream()
+                        .map(assignment -> {
+                            TourGuide guide = assignment.getTourGuide();
+                            TourGuideDTO guideDTO = new TourGuideDTO();
+                            guideDTO.setGuideId(guide.getUserId());
+                            guideDTO.setFullName(guide.getFullName());
+                            guideDTO.setExperienceYear(guide.getExperienceYear());
+                            return guideDTO;
+                        })
+                        .collect(Collectors.toList());
+                departureDTO.setTourGuides(tourGuideDTOs);
+                logger.info("Mapped DepartureDTO: {}", departureDTO);
+                departureDTOs.add(departureDTO);
+            }
+        }
 
         // Ánh xạ danh sách hình ảnh
         List<ImageDTO> imageDTOs = tour.getImages().stream()
@@ -314,25 +318,24 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         return modelMapper.map(tourDetailDTO, Tour.class);
     }
 
-@Override
-public String uploadImageToAWS(File file) throws IOException {
-    String fileName = UUID.randomUUID() + "_" + file.getName();
 
-    try {
-        // Tải lên hình ảnh lên AWS S3
-        s3Client.putObject(new PutObjectRequest(bucketName, fileName, file));
-
-        String fileUrl = s3Client.getUrl(bucketName, fileName).toString();
-        return fileUrl;
-    } catch (Exception e) {
-        throw new IOException("Error uploading image: " + e.getMessage(), e);
-    } finally {
-        // Dọn dẹp file tạm thời nếu cần
-        if (file.exists()) {
-            file.delete();
+    @Override
+    public String uploadImageToAWS(File file) throws IOException {
+        String fileName = UUID.randomUUID() + "_" + file.getName();
+        try {
+            // Tải lên hình ảnh lên AWS S3
+            s3Client.putObject(new PutObjectRequest(bucketName, fileName, file));
+            String fileUrl = s3Client.getUrl(bucketName, fileName).toString();
+            return fileUrl;
+        } catch (Exception e) {
+            throw new IOException("Error uploading image: " + e.getMessage(), e);
+        } finally {
+            // Dọn dẹp file tạm thời nếu cần
+            if (file.exists()) {
+                file.delete();
+            }
         }
     }
-}
 
     // Phương thức chuyển đổi MultipartFile thành File
     @Override
@@ -349,7 +352,6 @@ public String uploadImageToAWS(File file) throws IOException {
         LocalDate currentDate = LocalDate.now();
         LocalDateTime currentDateTime = currentDate.atStartOfDay();
         return tours.stream().map(tour -> {
-
             List<DepartureByTourDTO> departureDTOs = tour.getDepartures().stream()
                     .filter(departure -> departure.getStartDate().isAfter(currentDateTime))
                     .map(departure -> {
@@ -371,4 +373,8 @@ public String uploadImageToAWS(File file) throws IOException {
         }).collect(Collectors.toList());
     }
 
+    @Override
+    public TourInfoDTO convertToDTO(Tour tour) {
+        return modelMapper.map(tour, TourInfoDTO.class);
+    }
 }

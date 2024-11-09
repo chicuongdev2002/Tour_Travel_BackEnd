@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.service;import org.springframework.data.domain.Page;import vn.edu.iuh.fit.entity.Booking;import java.util.UUID;public interface BookingService extends CrudService<Booking, Long> {    Page<Booking> getPageBooking(int page, int size, String sortBy, String sortDirection);}
+package vn.edu.iuh.fit.service;import org.springframework.data.domain.Page;import vn.edu.iuh.fit.dto.BookingDTO;import vn.edu.iuh.fit.entity.Booking;public interface BookingService extends CrudService<Booking, Long> {    BookingDTO convertDTO(Booking booking);}
