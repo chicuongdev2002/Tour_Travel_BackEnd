@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.TourDestination;import vn.edu.iuh.fit.service.CrudService;import java.util.UUID;public interface TourDestinationService extends CrudService<TourDestination, Long> {}
+package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.Tour;import vn.edu.iuh.fit.entity.TourDestination;import vn.edu.iuh.fit.service.CrudService;import java.util.List;import java.util.UUID;public interface TourDestinationService extends CrudService<TourDestination, Long> {    List<TourDestination> findAllByTour(Tour tour);}

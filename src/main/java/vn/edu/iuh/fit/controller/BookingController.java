@@ -1,6 +1,7 @@
 package vn.edu.iuh.fit.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/bookings")
+@CrossOrigin("*")
 public class BookingController {
     @Autowired
     private BookingService bookingService;
@@ -46,6 +48,15 @@ public class BookingController {
     @GetMapping
     public ResponseEntity<List<Booking>> getAllBooking() {
         List<Booking> bookings = bookingService.getAll();
-        return new ResponseEntity<>(bookings, HttpStatus.OK);
+        return new ResponseEntity<>(bookings, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<Page<Booking>> getPageBooking(@RequestParam(defaultValue = "0") int page,
+                                                        @RequestParam(defaultValue = "10") int size,
+                                                        @RequestParam(required = false) String sortBy,
+                                                        @RequestParam(required = false) String sortDirection){
+        Page<Booking> pageBooking = bookingService.getPageBooking(page, size, sortBy, sortDirection);
+        return new ResponseEntity<>(pageBooking, HttpStatus.OK);
     }
 }

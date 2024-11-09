@@ -37,6 +37,7 @@ import vn.edu.iuh.fit.service.TourService;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -314,7 +315,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     }
 
 @Override
-public String uploadImageToAWS(File file, Tour tour, Destination destination) throws IOException {
+public String uploadImageToAWS(File file) throws IOException {
     String fileName = UUID.randomUUID() + "_" + file.getName();
 
     try {
@@ -322,26 +323,6 @@ public String uploadImageToAWS(File file, Tour tour, Destination destination) th
         s3Client.putObject(new PutObjectRequest(bucketName, fileName, file));
 
         String fileUrl = s3Client.getUrl(bucketName, fileName).toString();
-
-        // Kiểm tra tour đã được lưu hay chưa
-        if (tour.getTourId() == 0) {
-            tour = tourRepository.save(tour); // Lưu tour nếu tourId bằng 0
-        }
-
-        Image image = new Image();
-        image.setImageUrl(fileUrl);
-        image.setTour(tour);
-        image.setDestination(destination);
-
-        // Khởi tạo tập hợp hình ảnh nếu cần
-        if (tour.getImages() == null) {
-            tour.setImages(new HashSet<>());
-        }
-
-        // Thêm hình ảnh vào tour
-        tour.getImages().add(image);
-        imageRepository.save(image); // Lưu hình ảnh vào cơ sở dữ liệu
-
         return fileUrl;
     } catch (Exception e) {
         throw new IOException("Error uploading image: " + e.getMessage(), e);
@@ -362,9 +343,32 @@ public String uploadImageToAWS(File file, Tour tour, Destination destination) th
         return convFile;
     }
 
-//    @Override
-//    public List<Tour> searchTours(String keyword) {
-//        return tourRepository.findByTourNameContainingIgnoreCaseOrStartLocationContainingIgnoreCase(keyword, keyword);
-//    }
+    @Override
+    public List<TourWithDeparturesDTO> getAllToursAndDeparture() {
+        List<Tour> tours = tourRepository.findAll();
+        LocalDate currentDate = LocalDate.now();
+        LocalDateTime currentDateTime = currentDate.atStartOfDay();
+        return tours.stream().map(tour -> {
+
+            List<DepartureByTourDTO> departureDTOs = tour.getDepartures().stream()
+                    .filter(departure -> departure.getStartDate().isAfter(currentDateTime))
+                    .map(departure -> {
+                        DepartureByTourDTO departureDTO = new DepartureByTourDTO();
+                        departureDTO.setDepartureId(departure.getDepartureId());
+                        departureDTO.setStartDate(departure.getStartDate());
+                        departureDTO.setEndDate(departure.getEndDate());
+                        departureDTO.setAvailableSeats(departure.getAvailableSeats());
+                        departureDTO.setMaxParticipants(departure.getMaxParticipants());
+                        return departureDTO;
+                    }).collect(Collectors.toList());
+
+            return new TourWithDeparturesDTO(
+                    tour.getTourId(),
+                    tour.getTourName(),
+                    tour.getTourType().name(),
+                    departureDTOs
+            );
+        }).collect(Collectors.toList());
+    }
 
 }
