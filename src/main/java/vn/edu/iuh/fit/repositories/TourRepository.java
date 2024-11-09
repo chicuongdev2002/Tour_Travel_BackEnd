@@ -46,7 +46,7 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
             "JOIN Departure d2 ON d2.departureId = tp2.departure.departureId " +
             "WHERE d2.tour.tourId = t.tourId) " +
             "GROUP BY t.tourId")
-    Page<Object[]> findtTourByKeyword(@Param("keyword") String keyword, Pageable pageable);
+    Page<Object[]> findTourByKeyword(@Param("keyword") String keyword, Pageable pageable);
     @Query("SELECT t, tp, d.startDate, d.availableSeats,d.maxParticipants , " +
             "(SELECT GROUP_CONCAT(img.imageUrl) FROM Image img WHERE img.tour.tourId = t.tourId) " +
             "FROM Tour t " +
