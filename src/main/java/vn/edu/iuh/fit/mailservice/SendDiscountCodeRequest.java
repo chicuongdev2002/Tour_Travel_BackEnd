@@ -1,1 +1,0 @@
-package vn.edu.iuh.fit.mailservice;import lombok.*;import java.util.List;@Data@AllArgsConstructor@NoArgsConstructor@Getter @Setterpublic class SendDiscountCodeRequest {    private List<String> emails;    private List<Long> discountIds;}

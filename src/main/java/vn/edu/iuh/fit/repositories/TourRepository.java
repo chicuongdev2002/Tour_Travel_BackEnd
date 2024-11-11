@@ -29,8 +29,8 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
             "WHERE tp.price = (SELECT MIN(tp2.price) FROM TourPricing tp2 " +
             "JOIN Departure d2 ON d2.departureId = tp2.departure.departureId " +
             "WHERE d2.tour.tourId = t.tourId AND tp2.price BETWEEN :minPrice AND :maxPrice) " +
-            "AND d.startDate = (SELECT MIN(d2.startDate) FROM Departure d2 WHERE d2.tour.tourId = t.tourId) " +
-            "GROUP BY t.tourId")
+            "AND d.startDate = (SELECT MIN(d2.startDate) FROM Departure d2 WHERE d2.tour.tourId = t.tourId and t.isActive=true ) " +
+            "GROUP BY t.tourId ORDER BY d.startDate DESC")
     Page<Object[]> findToursWithPriceRange(@Param("minPrice") BigDecimal minPrice,
                                            @Param("maxPrice") BigDecimal maxPrice,
                                            Pageable pageable);
@@ -44,8 +44,8 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
             "AND d.startDate = (SELECT MIN(d2.startDate) FROM Departure d2 WHERE d2.tour.tourId = t.tourId) " +
             "AND tp.price = (SELECT MIN(tp2.price) FROM TourPricing tp2 " +
             "JOIN Departure d2 ON d2.departureId = tp2.departure.departureId " +
-            "WHERE d2.tour.tourId = t.tourId) " +
-            "GROUP BY t.tourId")
+            "WHERE d2.tour.tourId = t.tourId and t.isActive=true) " +
+            "GROUP BY t.tourId ORDER BY d.startDate DESC")
     Page<Object[]> findTourByKeyword(@Param("keyword") String keyword, Pageable pageable);
     @Query("SELECT t, tp, d.startDate, d.availableSeats,d.maxParticipants , " +
             "(SELECT GROUP_CONCAT(img.imageUrl) FROM Image img WHERE img.tour.tourId = t.tourId) " +
@@ -60,29 +60,51 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
             "AND d.startDate = (SELECT MIN(d2.startDate) FROM Departure d2 WHERE d2.tour.tourId = t.tourId) " +
             "AND tp.price = (SELECT MIN(tp2.price) FROM TourPricing tp2 " +
             "JOIN Departure d2 ON d2.departureId = tp2.departure.departureId " +
-            "WHERE d2.tour.tourId = t.tourId) " +
-            "GROUP BY t.tourId")
+            "WHERE d2.tour.tourId = t.tourId and t.isActive=true) " +
+            "GROUP BY t.tourId ORDER BY d.startDate DESC")
     Page<Object[]> searchTours(@Param("minPrice") BigDecimal minPrice,
                                @Param("maxPrice") BigDecimal maxPrice,
                                @Param("tourType") TourType tourType,
                                @Param("startLocation") String startLocation,
                                @Param("participantType") ParticipantType participantType,
                                Pageable pageable);
+//    @Query("SELECT  t, tp, d.startDate,d.availableSeats, i.imageUrl FROM Tour t " +
+//            "JOIN Departure d ON d.tour.tourId = t.tourId " +
+//            "JOIN TourPricing tp ON d.departureId = tp.departure.departureId " +
+//            "LEFT JOIN Image i ON i.tour.tourId = t.tourId " +
+//            "WHERE tp.price BETWEEN :minPrice AND :maxPrice")
+//    Page<Object[]> findToursWithPriceRange(@Param("minPrice") BigDecimal minPrice,
+//                                           @Param("maxPrice") BigDecimal maxPrice,
+//                                           Pageable pageable);
     @EntityGraph(attributePaths = {"departures", "tourDestinations", "reviews"})
     Optional<Tour> findById(long id);
     //Tìm kiếm tour theo tên tour hoặc địa điểm bắt đầu
     List<Tour> findByTourNameContainingIgnoreCaseOrStartLocationContainingIgnoreCase(String tourName, String startLocation);
+//    @Query("SELECT  t, tp, d.startDate, d.availableSeats, i.imageUrl FROM Tour t " +
+//            "JOIN Departure d ON d.tour.tourId = t.tourId " +
+//            "JOIN TourPricing tp ON d.departureId = tp.departure.departureId " +
+//            "LEFT JOIN Image i ON i.tour.tourId = t.tourId " +
+//            "WHERE(LOWER(t.tourName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+//            "OR LOWER(t.startLocation) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+//    Page<Object[]> findtTourByKeyword(@Param("keyword") String keyword,Pageable pageable);
+//    // Phương thức tìm kiếm tour theo nhiều tiêu chí
+//    @Query("SELECT  t, tp, d.startDate, d.availableSeats, i.imageUrl FROM Tour t " +
+//            "JOIN Departure d ON d.tour.tourId = t.tourId " +
+//            "JOIN TourPricing tp ON d.departureId = tp.departure.departureId " +
+//            "LEFT JOIN Image i ON i.tour.tourId = t.tourId " +
+//            "WHERE (:minPrice IS NULL OR tp.price >= :minPrice) " +
+//            "AND (:maxPrice IS NULL OR tp.price <= :maxPrice) " +
+//            "AND (:tourType IS NULL OR t.tourType = :tourType) " +
+//            "AND (:startLocation IS NULL OR LOWER(t.startLocation) LIKE LOWER(CONCAT('%', :startLocation, '%'))) " +
+//            "AND (:participantType IS NULL OR tp.participantType = :participantType)")
+//    Page<Object[]> searchTours(@Param("minPrice") BigDecimal minPrice,
+//                               @Param("maxPrice") BigDecimal maxPrice,
+//                               @Param("tourType") TourType tourType,
+//                               @Param("startLocation") String startLocation,
+//                               @Param("participantType") ParticipantType participantType,
+//                               Pageable pageable);
 
-    @Query("SELECT DISTINCT t FROM Tour t " +
-            "LEFT JOIN FETCH t.departures d " +
-            "LEFT JOIN FETCH t.images " +
-            "LEFT JOIN FETCH t.reviews r " +
-            "LEFT JOIN FETCH r.user " +
-            "LEFT JOIN FETCH t.tourDestinations td " +
-            "LEFT JOIN FETCH td.destination dest " +
-            "LEFT JOIN FETCH dest.images " +
-            "WHERE t.tourId = :id")
-    Optional<Tour> findTourWithAllDetails(@Param("id") Long id);
+
     @Query("SELECT COUNT(tp) FROM TourPricing tp WHERE tp.departure.departureId IN :departureIds")
     long countTourPricingsByDepartureIds(@Param("departureIds") List<Long> departureIds);
 }
