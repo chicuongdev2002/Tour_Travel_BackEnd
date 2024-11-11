@@ -29,8 +29,8 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
             "WHERE tp.price = (SELECT MIN(tp2.price) FROM TourPricing tp2 " +
             "JOIN Departure d2 ON d2.departureId = tp2.departure.departureId " +
             "WHERE d2.tour.tourId = t.tourId AND tp2.price BETWEEN :minPrice AND :maxPrice) " +
-            "AND d.startDate = (SELECT MIN(d2.startDate) FROM Departure d2 WHERE d2.tour.tourId = t.tourId) " +
-            "GROUP BY t.tourId")
+            "AND d.startDate = (SELECT MIN(d2.startDate) FROM Departure d2 WHERE d2.tour.tourId = t.tourId and t.isActive=true ) " +
+            "GROUP BY t.tourId ORDER BY d.startDate DESC")
     Page<Object[]> findToursWithPriceRange(@Param("minPrice") BigDecimal minPrice,
                                            @Param("maxPrice") BigDecimal maxPrice,
                                            Pageable pageable);
@@ -44,8 +44,8 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
             "AND d.startDate = (SELECT MIN(d2.startDate) FROM Departure d2 WHERE d2.tour.tourId = t.tourId) " +
             "AND tp.price = (SELECT MIN(tp2.price) FROM TourPricing tp2 " +
             "JOIN Departure d2 ON d2.departureId = tp2.departure.departureId " +
-            "WHERE d2.tour.tourId = t.tourId) " +
-            "GROUP BY t.tourId")
+            "WHERE d2.tour.tourId = t.tourId and t.isActive=true) " +
+            "GROUP BY t.tourId ORDER BY d.startDate DESC")
     Page<Object[]> findTourByKeyword(@Param("keyword") String keyword, Pageable pageable);
     @Query("SELECT t, tp, d.startDate, d.availableSeats,d.maxParticipants , " +
             "(SELECT GROUP_CONCAT(img.imageUrl) FROM Image img WHERE img.tour.tourId = t.tourId) " +
@@ -60,8 +60,8 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
             "AND d.startDate = (SELECT MIN(d2.startDate) FROM Departure d2 WHERE d2.tour.tourId = t.tourId) " +
             "AND tp.price = (SELECT MIN(tp2.price) FROM TourPricing tp2 " +
             "JOIN Departure d2 ON d2.departureId = tp2.departure.departureId " +
-            "WHERE d2.tour.tourId = t.tourId) " +
-            "GROUP BY t.tourId")
+            "WHERE d2.tour.tourId = t.tourId and t.isActive=true) " +
+            "GROUP BY t.tourId ORDER BY d.startDate DESC")
     Page<Object[]> searchTours(@Param("minPrice") BigDecimal minPrice,
                                @Param("maxPrice") BigDecimal maxPrice,
                                @Param("tourType") TourType tourType,

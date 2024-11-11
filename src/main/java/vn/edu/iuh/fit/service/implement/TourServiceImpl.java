@@ -184,11 +184,17 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         logger.info("Number of Reviews: {}", tour.getReviews().size());
 
         // Lấy danh sách TourPricing cho các Departure
-        List<Long> departureIds = tour.getDepartures().stream()
-                .map(Departure::getDepartureId)
-                .collect(Collectors.toList());
-
-        List<TourPricing> tourPricings = tourPricingRepository.findTourPricingByDepartureIds(departureIds);
+        List<TourPricing> tourPricings = new ArrayList<>();
+        for(Departure departure : tour.getDepartures()){
+            for (ParticipantType participantType : ParticipantType.values()){
+                TourPricing tourPricing = tourPricingRepository.findFirstByDepartureAndParticipantTypeAndModifiedDateBeforeOrderByModifiedDateDesc(departure, participantType, departure.getStartDate());
+                if (tourPricing == null){
+                    tourPricing = TourPricing.builder().modifiedDate(LocalDateTime.now()).price(BigDecimal.ZERO).departure(departure).participantType(participantType).build();
+                    tourPricingRepository.save(tourPricing);
+                }
+                tourPricings.add(tourPricing);
+            }
+        }
 
         // Tạo bản đồ để ánh xạ giá tour theo departureId
         Map<Long, List<TourPricingDTO>> pricingMap = tourPricings.stream()
