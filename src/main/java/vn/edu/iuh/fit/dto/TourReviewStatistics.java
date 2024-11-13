@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto;import lombok.*;@Data@Getter@Setter@NoArgsConstructor@AllArgsConstructorpublic class TourReviewStatistics {    private long tourId;    private String tourName;    private int totalReviews;    private double averageRating;    private int[] ratingDistribution;}
