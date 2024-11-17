@@ -14,6 +14,6 @@ public class WebSocketController {
 
     @MessageMapping("/notify")
     public void notify(@Payload NotifyRequest notify) {
-        simpMessagingTemplate.convertAndSendToUser(notify.getUserId() + "", "notify", notify.getMessage());
+        simpMessagingTemplate.convertAndSendToUser(notify.getReceiver() + "", "notify", notify);
     }
 }
