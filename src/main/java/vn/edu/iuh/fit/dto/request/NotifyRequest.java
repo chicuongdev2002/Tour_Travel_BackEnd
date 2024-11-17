@@ -10,6 +10,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 public class NotifyRequest {
+    private long sender;
+    private long receiver;
     private String message;
-    private long userId;
 }
