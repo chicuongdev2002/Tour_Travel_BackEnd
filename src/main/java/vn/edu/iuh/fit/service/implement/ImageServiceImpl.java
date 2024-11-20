@@ -5,9 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 import vn.edu.iuh.fit.entity.Booking;
 import vn.edu.iuh.fit.entity.Image;
+import vn.edu.iuh.fit.entity.Tour;
 import vn.edu.iuh.fit.repositories.ImageRepository;
 import vn.edu.iuh.fit.service.BookingService;
 import vn.edu.iuh.fit.service.ImageService;
+
+import java.util.List;
 
 @Service
 public class ImageServiceImpl extends AbstractCrudService<Image, Long> implements ImageService {
@@ -18,5 +21,10 @@ public class ImageServiceImpl extends AbstractCrudService<Image, Long> implement
     @Override
     protected JpaRepository<Image, Long> getRepository() {
         return imageRepository;
+    }
+
+    @Override
+    public List<Image> findAllByTouur(Tour tour) {
+        return imageRepository.findAllByTour(tour);
     }
 }
