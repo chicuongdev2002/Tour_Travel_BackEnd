@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto;import lombok.AllArgsConstructor;import lombok.Getter;import lombok.NoArgsConstructor;import lombok.Setter;import java.math.BigDecimal;import java.time.LocalDate;@AllArgsConstructor@NoArgsConstructor@Getter@Setterpublic class RevenueStatisticsDTO {    private LocalDate date;    private BigDecimal totalRevenue;}
