@@ -28,8 +28,12 @@ import vn.edu.iuh.fit.entity.*;
 import vn.edu.iuh.fit.enums.ParticipantType;
 import vn.edu.iuh.fit.enums.TourType;
 import vn.edu.iuh.fit.exception.ResourceNotFoundException;
+import vn.edu.iuh.fit.repositories.DepartureRepository;
 import vn.edu.iuh.fit.repositories.TourPricingRepository;
 import vn.edu.iuh.fit.repositories.TourRepository;
+import vn.edu.iuh.fit.service.DiscountService;
+import vn.edu.iuh.fit.service.ImageService;
+import vn.edu.iuh.fit.service.TourPricingService;
 import vn.edu.iuh.fit.service.TourService;
 
 import java.io.File;
@@ -47,6 +51,12 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     private TourRepository tourRepository;
     @Autowired
     private TourPricingRepository tourPricingRepository;
+    @Autowired
+    private TourPricingService tourPricingService;
+    @Autowired
+    private ImageService imageService;
+    @Autowired
+    private DiscountService discountService;
     private final ModelMapper modelMapper;
     //    @Autowired
 //    private PagedResourcesAssembler<Tour> pagedResourcesAssembler;
@@ -63,6 +73,9 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     private String region;
 
     private AmazonS3 s3Client;
+
+    @Autowired
+    private DepartureRepository departureRepository;
 
     @Autowired
     public TourServiceImpl(TourRepository tourRepository, ModelMapper modelMapper) {
@@ -189,7 +202,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
             for (ParticipantType participantType : ParticipantType.values()){
                 TourPricing tourPricing = tourPricingRepository.findFirstByDepartureAndParticipantTypeAndModifiedDateBeforeOrderByModifiedDateDesc(departure, participantType, departure.getStartDate());
                 if (tourPricing == null){
-                    tourPricing = TourPricing.builder().modifiedDate(LocalDateTime.now()).price(BigDecimal.ZERO).departure(departure).participantType(participantType).build();
+                    tourPricing = TourPricing.builder().modifiedDate(departure.getStartDate().plusSeconds(-1)).price(BigDecimal.ZERO).departure(departure).participantType(participantType).build();
                     tourPricingRepository.save(tourPricing);
                 }
                 tourPricings.add(tourPricing);
@@ -314,6 +327,33 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     @Override
     public TourInfoDTO convertToDTO(Tour tour) {
         return modelMapper.map(tour, TourInfoDTO.class);
+    }
+
+    @Override
+    public String getPriceTourCard(Tour tour) {
+        List<Departure> lst = departureRepository.findAllByTourAndIsActive(tour, true);
+        Set<String> set = new HashSet<>();
+        for(Departure departure : lst)
+            set.add(tourPricingService.getPriceByDeparture(departure.getDepartureId()));
+        if(set.isEmpty()) return "0,0,0";
+        if(set.size() == 1) return set.toArray()[0].toString().trim().replace(" ", ",");
+        return Collections.min(set).trim().replace(" ", ",") + "-" + Collections.max(set).trim().replace(" ", ",");
+    }
+
+    @Override
+    public List<TourCardDTO> convertTourToTourCardDTO(List<Tour> tours) {
+        List<TourCardDTO> tourCardDTOs = new ArrayList<>();
+        for (Tour tour : tours) {
+            TourCardDTO tourCardDTO = TourCardDTO.builder()
+                    .tourId(tour.getTourId())
+                    .tourName(tour.getTourName())
+                    .price(getPriceTourCard(tour))
+                    .image(imageService.findAllByTouur(tour).isEmpty() ? null : imageService.findAllByTouur(tour).get(0).getImageUrl())
+                    .discount(discountService.getDiscountByTour(tour) == null? null : discountService.getDiscountByTour(tour).getDiscountAmount().intValue())
+                    .build();
+            tourCardDTOs.add(tourCardDTO);
+        }
+        return tourCardDTOs;
     }
 
 //    @Override

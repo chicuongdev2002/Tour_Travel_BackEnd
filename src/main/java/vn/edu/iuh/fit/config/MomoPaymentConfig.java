@@ -1,24 +1,26 @@
 package vn.edu.iuh.fit.config;
 
-import com.fasterxml.jackson.databind.util.JSONPObject;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import vn.edu.iuh.fit.dto.BookingDTO;
+import vn.edu.iuh.fit.dto.request.BookingRequest;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 public class MomoPaymentConfig {
     private final String accessKey = "F8BBA842ECF85";
     private final String secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
     private final String orderInfo = "Thanh toán với MoMo";
     private final String partnerCode = "MOMO";
-    private final String redirectUrl = "http://localhost:5173";
-    private final String ipnUrl = "https://f571-101-99-24-11.ngrok-free.app/api/payment/momo/callback";
+    private final String redirectUrl = "http://localhost:5173/payment";
+    private final String ipnUrl = "https://581b-101-99-24-11.ngrok-free.app/api/payment/momo/callback";
     private final String requestType = "payWithMethod";
-    private final String extraData = "";
+    private String extraData = "";
     private final String orderGroupId = "";
     private final boolean autoCapture = true;
     private final String lang = "vi";
