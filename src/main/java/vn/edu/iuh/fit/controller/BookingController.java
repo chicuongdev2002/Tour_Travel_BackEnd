@@ -7,12 +7,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dto.BookingDTO;
+import vn.edu.iuh.fit.dto.BookingHasPrice;
 import vn.edu.iuh.fit.entity.Booking;
 import vn.edu.iuh.fit.entity.Departure;
+import vn.edu.iuh.fit.entity.Payment;
 import vn.edu.iuh.fit.entity.User;
-import vn.edu.iuh.fit.service.BookingService;
-import vn.edu.iuh.fit.service.DepartureService;
-import vn.edu.iuh.fit.service.UserService;
+import vn.edu.iuh.fit.enums.PaymentMethod;
+import vn.edu.iuh.fit.service.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,12 +31,21 @@ public class BookingController {
     @Autowired
     private DepartureService departureService;
 
+    @Autowired
+    private TourPricingService tourPricingService;
+
+    @Autowired
+    private PaymentService paymentService;
+
     @PostMapping("/createBooking")
     @Transactional(rollbackFor = Exception.class)
-    public ResponseEntity<BookingDTO> createBooking(@RequestParam long userId,
+    public ResponseEntity<BookingDTO> createBooking(@RequestParam String bookingID,
+                                                    @RequestParam long userId,
                                                     @RequestParam long departureId,
-                                                    @RequestParam String participants) throws Exception {
-        BookingDTO bookingDTO = null;
+                                                    @RequestParam String participants,
+                                                    @RequestParam String address,
+                                                    @RequestParam(required = false) String paymentMethod) throws Exception {
+        BookingDTO bookingDTO;
         try{
             User user = userService.getById(userId);
             Departure departure = departureService.getById(departureId);
@@ -47,13 +57,23 @@ public class BookingController {
             departure.setAvailableSeats(newAvailableSeats);
             departureService.update(departure);
             Booking booking = Booking.builder()
+                    .bookingId(bookingID)
                     .user(user)
                     .departure(departure)
                     .bookingDate(LocalDateTime.now())
                     .participants(participants)
                     .isActive(true)
+                    .address(address)
                     .build();
             bookingDTO = bookingService.convertDTO(bookingService.create(booking));
+            if(paymentMethod != null){
+                Payment payment = Payment.builder()
+                        .booking(booking)
+                        .amount(tourPricingService.calculatePrice(booking))
+                        .paymentMethod(PaymentMethod.CASH)
+                        .build();
+                paymentService.create(payment);
+            }
         } catch (Exception e){
             if(e.getMessage().equals("Không đủ chỗ trống!"))
                 throw new Exception(e.getMessage());
@@ -77,8 +97,26 @@ public class BookingController {
         return new ResponseEntity<>(pageBooking, HttpStatus.OK);
     }
 
+    @GetMapping("/page/has-price")
+    public ResponseEntity<Page<BookingHasPrice>> getPageBookingHasPrice(@RequestParam(defaultValue = "0") int page,
+                                                                        @RequestParam(defaultValue = "10") int size,
+                                                                        @RequestParam(required = false) String sortBy,
+                                                                        @RequestParam(required = false) String sortDirection){
+        Page<BookingHasPrice> pageBooking = bookingService.getPageList(page, size, sortBy, sortDirection)
+                .map(b -> {
+                    BookingHasPrice bookingHasPrice = new BookingHasPrice();
+                    bookingHasPrice.setBooking(b);
+                    bookingHasPrice.setPrice(tourPricingService.calculatePrice(b));
+                    Payment payment = paymentService.getPaymentByBooking(b.getBookingId());
+                    bookingHasPrice.setPaymentDate(payment.getPaymentDate());
+                    bookingHasPrice.setPaymentMethod(payment.getPaymentMethod());
+                    return bookingHasPrice;
+                });
+        return new ResponseEntity<>(pageBooking, HttpStatus.OK);
+    }
+
     @PutMapping("/updateStatus")
-    public ResponseEntity<String> updateStatusBooking(@RequestParam long bookingId){
+    public ResponseEntity<String> updateStatusBooking(@RequestParam String bookingId){
         Booking booking = bookingService.getById(bookingId);
         if(booking == null)
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Không tìm thấy đơn đặt tour");

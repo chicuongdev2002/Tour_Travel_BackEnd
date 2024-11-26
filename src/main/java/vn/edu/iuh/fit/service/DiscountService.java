@@ -1,4 +1,8 @@
 package vn.edu.iuh.fit.service;
 
-public interface DiscountService {
+import vn.edu.iuh.fit.entity.Discount;
+import vn.edu.iuh.fit.entity.Tour;
+
+public interface DiscountService extends CrudService<Discount, Long> {
+    Discount getDiscountByTour(Tour tour);
 }
