@@ -40,8 +40,8 @@ public class WebSocketController {
     @MessageMapping("/checkin")
     public void handleCheckIn(@Payload String qrContent) {
         try {
-            Long bookingId = Long.parseLong(qrContent.trim());
-            Booking booking = bookingService.getById(bookingId);
+//            Long bookingId = Long.parseLong(qrContent.trim());
+            Booking booking = bookingService.getById(qrContent);
 
             if (booking != null) {
                 if (booking.getCheckinStatus() == CheckInStatus.CHECKED_IN) {

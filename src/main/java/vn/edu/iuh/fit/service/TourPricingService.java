@@ -1,1 +1,1 @@
-package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.entity.TourPricing;import java.util.UUID;public interface TourPricingService extends CrudService<TourPricing, Long> {}
+package vn.edu.iuh.fit.service;import org.joda.time.LocalDateTime;import vn.edu.iuh.fit.entity.Booking;import vn.edu.iuh.fit.entity.TourPricing;import java.util.List;import java.util.UUID;public interface TourPricingService extends CrudService<TourPricing, Long> {    String getPriceByDeparture(long departureId);    long calculatePrice(Booking booking);}

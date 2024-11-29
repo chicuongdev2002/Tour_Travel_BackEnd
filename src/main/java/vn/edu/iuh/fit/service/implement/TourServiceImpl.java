@@ -29,8 +29,13 @@ import vn.edu.iuh.fit.enums.ParticipantType;
 import vn.edu.iuh.fit.enums.TourType;
 import vn.edu.iuh.fit.exception.ResourceNotFoundException;
 import vn.edu.iuh.fit.repositories.*;
+import vn.edu.iuh.fit.repositories.DepartureRepository;
+import vn.edu.iuh.fit.repositories.TourPricingRepository;
+import vn.edu.iuh.fit.repositories.TourRepository;
+import vn.edu.iuh.fit.service.DiscountService;
+import vn.edu.iuh.fit.service.ImageService;
+import vn.edu.iuh.fit.service.TourPricingService;
 import vn.edu.iuh.fit.service.TourService;
-
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -49,6 +54,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     @Autowired
     private TourPricingRepository tourPricingRepository;
     @Autowired
+
     private TourGuideAssignmentRepository tourGuideAssignmentRepository;
     @Autowired
     private ImageRepository imageRepository;
@@ -61,6 +67,12 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     @Autowired
     private FavoriteTourRepository favoriteTourRepository;
 
+
+    private TourPricingService tourPricingService;
+    @Autowired
+    private ImageService imageService;
+    @Autowired
+    private DiscountService discountService;
     private final ModelMapper modelMapper;
     //    @Autowired
 //    private PagedResourcesAssembler<Tour> pagedResourcesAssembler;
@@ -77,6 +89,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     private String region;
 
     private AmazonS3 s3Client;
+
 
     @Autowired
     public TourServiceImpl(TourRepository tourRepository, ModelMapper modelMapper) {
@@ -256,7 +269,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                             .min(BigDecimal::compareTo)
                             .orElse(BigDecimal.ZERO);
 
-                    boolean isFavorite = userId != null && favoriteTourIds.contains(tour.getTourId()); // Kiểm tra tour yêu thích
+                    boolean isFavorite = userId != null && favoriteTourIds.contains(tour.getTourId());
 
                     return TourListDTO.builder()
                             .tourId(tour.getTourId())
@@ -325,11 +338,18 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         logger.info("Number of Reviews: {}", tour.getReviews().size());
 
         // Lấy danh sách TourPricing cho các Departure
-        List<Long> departureIds = tour.getDepartures().stream()
-                .map(Departure::getDepartureId)
-                .collect(Collectors.toList());
 
-        List<TourPricing> tourPricings = tourPricingRepository.findTourPricingByDepartureIds(departureIds);
+        List<TourPricing> tourPricings = new ArrayList<>();
+        for(Departure departure : tour.getDepartures()){
+            for (ParticipantType participantType : ParticipantType.values()){
+                TourPricing tourPricing = tourPricingRepository.findFirstByDepartureAndParticipantTypeAndModifiedDateBeforeOrderByModifiedDateDesc(departure, participantType, departure.getStartDate());
+                if (tourPricing == null){
+                    tourPricing = TourPricing.builder().modifiedDate(departure.getStartDate().plusSeconds(-1)).price(BigDecimal.ZERO).departure(departure).participantType(participantType).build();
+                    tourPricingRepository.save(tourPricing);
+                }
+                tourPricings.add(tourPricing);
+            }
+        }
 
         // Tạo bản đồ để ánh xạ giá tour theo departureId
         Map<Long, List<TourPricingDTO>> pricingMap = tourPricings.stream()
@@ -579,21 +599,20 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                     BigDecimal totalPrice = BigDecimal.ZERO;
                     Map<String, BigDecimal> ticketRevenue = new HashMap<>();
 
-                    // Convert tour list to TourSimpleDTO list
-                    List<TourSimpleDTO> tourSimpleDTOs = tours.stream()
-                            .map(tour -> new TourSimpleDTO(tour.getTourId(), tour.getTourName(), tour.getTourType()))
-                            .collect(Collectors.toList());
+                    // Tạo danh sách TourSimpleDTO
+                    List<TourSimpleDTO> tourSimpleDTOs = new ArrayList<>();
 
                     for (Tour tour : tours) {
+                        // Thêm thông tin tour vào danh sách TourSimpleDTO
+                        tourSimpleDTOs.add(new TourSimpleDTO(tour.getTourId(), tour.getTourName(), tour.getTourType())); // Sử dụng các thuộc tính từ Tour
+
                         List<Departure> departures = departureRepository.findAllByTour(tour);
                         for (Departure departure : departures) {
                             List<Booking> bookings = bookingRepository.findByDeparture(departure);
                             for (Booking booking : bookings) {
                                 String[] participants = booking.getParticipants().split(",");
                                 List<TourPricing> tourPricings = tourPricingRepository.findByDeparture(departure);
-
-                                // Ensure we have the correct number of participants
-                                if (participants.length == 3) { // Assuming 3 types: Children, Adults, Elderly
+                                if (participants.length == 3) {
                                     for (int i = 0; i < participants.length; i++) {
                                         int quantity = Integer.parseInt(participants[i]);
                                         if (i < tourPricings.size()) {
@@ -605,18 +624,50 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                                                     BigDecimal::add);
                                         }
                                     }
-                                } else {
-                                    // Log or handle the error for unexpected participant format
                                 }
                             }
                         }
                     }
-                    return new TourCountDTO(userId,userName, tourCount, tourSimpleDTOs, totalPrice, ticketRevenue);
+                    return new TourCountDTO(userId, userName, tourCount, tourSimpleDTOs, totalPrice, ticketRevenue);
                 })
                 .collect(Collectors.toList());
 
         return tourCounts;
     }
+
+                    @Override
+                    public String getPriceTourCard(Tour tour) {
+                        List<Departure> lst = departureRepository.findAllByTourAndIsActive(tour, true);
+                        Set<String> set = new HashSet<>();
+                        for(Departure departure : lst)
+                            set.add(tourPricingService.getPriceByDeparture(departure.getDepartureId()));
+                        if(set.isEmpty()) return "0,0,0";
+                        if(set.size() == 1) return set.toArray()[0].toString().trim().replace(" ", ",");
+                        return Collections.min(set).trim().replace(" ", ",") + "-" + Collections.max(set).trim().replace(" ", ",");
+                    }
+    @Override
+    public List<TourCardDTO> convertTourToTourCardDTO(List<Tour> tours) {
+        List<TourCardDTO> tourCardDTOs = new ArrayList<>();
+        for (Tour tour : tours) {
+            TourCardDTO tourCardDTO = TourCardDTO.builder()
+                    .tourId(tour.getTourId())
+                    .tourName(tour.getTourName())
+                    .price(getPriceTourCard(tour))
+                    .image(imageService.findAllByTouur(tour).isEmpty() ? null : imageService.findAllByTouur(tour).get(0).getImageUrl())
+                    .discount(discountService.getDiscountByTour(tour) == null? null : discountService.getDiscountByTour(tour).getDiscountAmount().intValue())
+                    .build();
+            tourCardDTOs.add(tourCardDTO);
+        }
+        return tourCardDTOs;
+    }
+
+//    @Override
+//    public List<Tour> searchTours(String keyword) {
+//        return tourRepository.findByTourNameContainingIgnoreCaseOrStartLocationContainingIgnoreCase(keyword, keyword);
+//    }
+
+
+
     @Override
     public TourCountDTO getTourStatisticsByUserId(Long userId) {
         // Fetch the user by userId

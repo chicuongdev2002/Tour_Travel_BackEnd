@@ -1,25 +1,23 @@
 package vn.edu.iuh.fit.controller;
 
 import com.google.gson.Gson;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.config.MomoPaymentConfig;
-import vn.edu.iuh.fit.config.MomoRequestBody;
+import vn.edu.iuh.fit.dto.BookingDTO;
+import vn.edu.iuh.fit.dto.request.BookingRequest;
+import vn.edu.iuh.fit.entity.Booking;
+import vn.edu.iuh.fit.entity.Payment;
+import vn.edu.iuh.fit.enums.PaymentMethod;
 import vn.edu.iuh.fit.service.APIService;
+import vn.edu.iuh.fit.service.PaymentService;
 
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URL;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/payment")
@@ -27,12 +25,31 @@ import java.util.concurrent.CompletableFuture;
 public class PaymentController {
 
     @Autowired
+    private PaymentService paymentService;
+
+    @Autowired
     private APIService apiService;
 
+    @Autowired
+    private SimpMessagingTemplate simpMessagingTemplate;
+
+    @Autowired
+    private BookingController bookingController;
+
     @PostMapping("/momo")
+    @Transactional(rollbackOn = Exception.class)
     public ResponseEntity<String> paymentMomo(@RequestParam long amount,
-                                              @RequestParam String orderId) throws Exception {
+                                              @RequestParam String orderId,
+                                              @RequestParam long userId,
+                                              @RequestParam long departureId,
+                                              @RequestParam String address,
+                                              @RequestParam String participants
+                                              ) throws Exception {
+        ResponseEntity<BookingDTO> booking = bookingController.createBooking(orderId, userId, departureId, participants, address, null);
+        if(booking.getBody() == null)
+            throw new Exception();
         MomoPaymentConfig momoPaymentConfig = new MomoPaymentConfig();
+        momoPaymentConfig.setExtraData(userId + "#" + departureId);
         String rawSignature = "accessKey=" + momoPaymentConfig.getAccessKey()
                 + "&amount=" + amount + "&extraData=" + momoPaymentConfig.getExtraData()
                 + "&ipnUrl=" + momoPaymentConfig.getIpnUrl() + "&orderId=" + orderId
@@ -64,9 +81,26 @@ public class PaymentController {
         return ResponseEntity.ok(apiService.postData(url, requestBody));
     }
 
+    @MessageMapping("/callBackPayment")
     @PostMapping("/momo/callback")
-    public ResponseEntity<String> callBack(@RequestBody Object requestBody){
-        System.out.println(requestBody);
-        return null;
+    public void callBack(@RequestBody LinkedHashMap<String, Object> requestBody) {
+        BookingRequest extraData = BookingRequest.builder()
+                .bookingId(requestBody.get("orderId").toString())
+                .userId(Long.parseLong(requestBody.get("extraData").toString().split("#")[0]))
+                .departureId(Long.parseLong(requestBody.get("extraData").toString().split("#")[1]))
+                .build();
+        Payment payment = Payment.builder()
+                .amount(Long.parseLong(requestBody.get("amount") + ""))
+                .paymentDate(LocalDateTime.now())
+                .paymentMethod(PaymentMethod.BANKING)
+                .booking(Booking.builder().bookingId(requestBody.get("orderId").toString()).build())
+                .build();
+        paymentService.create(payment);
+        simpMessagingTemplate.convertAndSendToUser(extraData.getUserId() + "", "callBackPayment", extraData);
+    }
+
+    @GetMapping("/booking")
+    public ResponseEntity<Payment> getPaymentByBooking(@RequestParam String bookingId){
+        return ResponseEntity.ok(paymentService.getPaymentByBooking(bookingId));
     }
 }
