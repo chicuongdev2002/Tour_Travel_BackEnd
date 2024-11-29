@@ -87,10 +87,6 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
     Optional<Tour> findTourWithAllDetails(@Param("id") Long id);
     @Query("SELECT COUNT(tp) FROM TourPricing tp WHERE tp.departure.departureId IN :departureIds")
     long countTourPricingsByDepartureIds(@Param("departureIds") List<Long> departureIds);
-//    @Query("SELECT new vn.edu.iuh.fit.dto.TourCountDTO(u.fullName, COUNT(t)) " +
-//            "FROM Tour t JOIN t.user u " +
-//            "GROUP BY u.userId")
-//    List<TourCountDTO> countToursByUser();
     @Query("SELECT t FROM Tour t")
     List<Tour> findAllTours();
     List<Tour> findByUser(User user);

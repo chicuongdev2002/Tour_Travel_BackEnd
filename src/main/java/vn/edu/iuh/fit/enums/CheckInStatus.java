@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.enums;public enum CheckInStatus {    NOT_CHECKED_IN,    CHECKED_IN,    CHECK_IN_FAILED;}

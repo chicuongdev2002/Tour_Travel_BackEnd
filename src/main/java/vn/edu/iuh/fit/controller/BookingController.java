@@ -1,5 +1,6 @@
 package vn.edu.iuh.fit.controller;
 
+import com.google.zxing.client.j2se.MatrixToImageWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -7,12 +8,24 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dto.BookingDTO;
+import vn.edu.iuh.fit.dto.respone.ItineraryResponse;
 import vn.edu.iuh.fit.entity.Booking;
 import vn.edu.iuh.fit.entity.Departure;
 import vn.edu.iuh.fit.entity.User;
+import vn.edu.iuh.fit.mailservice.EmailService;
 import vn.edu.iuh.fit.service.BookingService;
 import vn.edu.iuh.fit.service.DepartureService;
 import vn.edu.iuh.fit.service.UserService;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.WriterException;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Base64;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,7 +42,8 @@ public class BookingController {
 
     @Autowired
     private DepartureService departureService;
-
+    @Autowired
+    private EmailService emailService;
     @PostMapping("/createBooking")
     @Transactional(rollbackFor = Exception.class)
     public ResponseEntity<BookingDTO> createBooking(@RequestParam long userId,
@@ -54,12 +68,34 @@ public class BookingController {
                     .isActive(true)
                     .build();
             bookingDTO = bookingService.convertDTO(bookingService.create(booking));
+            //
+            byte[] qrCodeBase64 = generateQRCode(booking.getBookingId());
+            System.out.println("QR Code Base64: " + qrCodeBase64);
+            emailService.sendBookingConfirmationEmail(user.getEmail(), bookingDTO, qrCodeBase64);
+            //
         } catch (Exception e){
             if(e.getMessage().equals("Không đủ chỗ trống!"))
                 throw new Exception(e.getMessage());
             throw new Exception("Đã xảy ra lỗi trong quá trình xử lý thông tin!");
         }
         return ResponseEntity.ok(bookingDTO);
+    }
+
+    private byte[] generateQRCode(Long bookingId) throws WriterException, IOException {
+        QRCodeWriter qrCodeWriter = new QRCodeWriter();
+        BitMatrix bitMatrix = qrCodeWriter.encode(String.valueOf(bookingId), BarcodeFormat.QR_CODE, 200, 200);
+        BufferedImage image = new BufferedImage(200, 200, BufferedImage.TYPE_INT_RGB);
+        for (int x = 0; x < 200; x++) {
+            for (int y = 0; y < 200; y++) {
+                image.setRGB(x, y, bitMatrix.get(x, y) ? 0xFF000000 : 0xFFFFFFFF);
+            }
+        }
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", baos);
+        byte[] qrCodeBytes = baos.toByteArray();
+        return qrCodeBytes;
+//        return Base64.getEncoder().encodeToString(qrCodeBytes);
     }
 
     @GetMapping
@@ -85,5 +121,17 @@ public class BookingController {
         booking.setActive(!booking.isActive());
         bookingService.update(booking);
         return ResponseEntity.status(HttpStatus.OK).body("Update thành công");
+    }
+    //lây danh sách booking theo bookingId
+    @GetMapping("/getBookingById")  //api/bookings/getBookingById?bookingId=1
+    public ResponseEntity<Booking> getBookingById(@RequestParam long bookingId){
+        Booking booking = bookingService.getById(bookingId);
+        if(booking == null)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        return ResponseEntity.status(HttpStatus.OK).body(booking);
+    }
+    @GetMapping("/itinerary/{userId}")
+    public ItineraryResponse getUserItinerary(@PathVariable long userId) {
+        return bookingService.getItineraryByUserId(userId);
     }
 }

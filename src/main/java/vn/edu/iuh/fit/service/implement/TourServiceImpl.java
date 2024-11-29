@@ -58,6 +58,8 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     private BookingRepository bookingRepository;
     @Autowired
     private  UserRepository userRepository;
+    @Autowired
+    private FavoriteTourRepository favoriteTourRepository;
 
     private final ModelMapper modelMapper;
     //    @Autowired
@@ -177,16 +179,75 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         });
     }
 
-    public Page<TourListDTO> getToursTest(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Tour> toursPage = tourRepository.findAll(pageable);
+    public Page<TourListDTO> getToursTest(int page, int size, String keyword, String startLocation,
+                                          String tourTypeStr, String participantTypeStr,
+                                          LocalDateTime startDate, LocalDateTime endDate,
+                                          BigDecimal minPrice, BigDecimal maxPrice,
+                                          Long userId) {
+        List<Tour> allTours = tourRepository.findAll();
+        LocalDateTime threeDaysFromNow = LocalDateTime.now().plusDays(3);
 
-        List<TourListDTO> tourListDTOs = toursPage.stream()
+        final TourType finalTourType = tourTypeStr != null ? TourType.valueOf(tourTypeStr.toUpperCase()) : null;
+        final ParticipantType finalParticipantType = participantTypeStr != null ? ParticipantType.valueOf(participantTypeStr.toUpperCase()) : null;
+        final String finalKeyword = keyword;
+
+        // Lọc danh sách tour
+        List<Tour> filteredTours = allTours.stream()
                 .filter(tour -> tour.isActive() &&
+                        tour.getTourType() != TourType.DELETE &&
                         !tour.getDepartures().isEmpty() &&
                         tour.getDepartures().stream()
                                 .anyMatch(departure -> departure.isActive() &&
-                                        departure.getAvailableSeats() > 0))
+                                        departure.getAvailableSeats() > 0 &&
+                                        departure.getStartDate().isAfter(threeDaysFromNow))
+                )
+                .filter(tour -> (finalKeyword == null || tour.getTourName().toLowerCase().contains(finalKeyword.toLowerCase())) &&
+                        (startLocation == null || tour.getStartLocation().equalsIgnoreCase(startLocation)) &&
+                        (finalTourType == null || tour.getTourType() == finalTourType) &&
+                        (finalParticipantType == null || matchesParticipantType(tour, finalParticipantType)) &&
+                        (startDate == null || tour.getDepartures().stream().anyMatch(departure -> departure.getStartDate().isAfter(startDate))) &&
+                        (endDate == null || tour.getDepartures().stream().anyMatch(departure -> departure.getStartDate().isBefore(endDate))) &&
+                        (minPrice == null || tour.getDepartures().stream().flatMap(departure -> departure.getTourPricing().stream())
+                                .map(TourPricing::getPrice)
+                                .filter(Objects::nonNull)
+                                .anyMatch(price -> price.compareTo(minPrice) >= 0)) &&
+                        (maxPrice == null || tour.getDepartures().stream().flatMap(departure -> departure.getTourPricing().stream())
+                                .map(TourPricing::getPrice)
+                                .filter(Objects::nonNull)
+                                .anyMatch(price -> price.compareTo(maxPrice) <= 0))
+                )
+                .collect(Collectors.toList());
+
+        // Retrieve favorite tours if userId is provided
+        final Set<Long> favoriteTourIds = new HashSet<>();
+        if (userId != null) {
+            User user = userRepository.findById(userId).orElse(null); // Fetch user by ID
+            if (user != null) {
+                List<FavoriteTour> favoriteTours = favoriteTourRepository.findByUser(user);
+                favoriteTourIds.addAll(favoriteTours.stream()
+                        .map(favoriteTour -> favoriteTour.getTour().getTourId())
+                        .collect(Collectors.toSet()));
+            }
+        }
+
+        // Sắp xếp các tour
+        filteredTours.sort((t1, t2) -> {
+            boolean t1IsFavorite = favoriteTourIds.contains(t1.getTourId());
+            boolean t2IsFavorite = favoriteTourIds.contains(t2.getTourId());
+            if (t1IsFavorite && !t2IsFavorite) {
+                return -1;  // t1 trước t2
+            } else if (!t1IsFavorite && t2IsFavorite) {
+                return 1;   // t2 trước t1
+            } else {
+                return t2.getCreatedDate().compareTo(t1.getCreatedDate()); // Sắp xếp theo ngày tạo nếu không có yêu thích
+            }
+        });
+
+        long totalFilteredElements = filteredTours.size();
+        int start = Math.min(page * size, (int) totalFilteredElements);
+        int end = Math.min(start + size, (int) totalFilteredElements);
+
+        List<TourListDTO> paginatedTours = filteredTours.subList(start, end).stream()
                 .map(tour -> {
                     BigDecimal lowestPrice = tour.getDepartures().stream()
                             .flatMap(departure -> departure.getTourPricing().stream())
@@ -195,9 +256,12 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                             .min(BigDecimal::compareTo)
                             .orElse(BigDecimal.ZERO);
 
+                    boolean isFavorite = userId != null && favoriteTourIds.contains(tour.getTourId()); // Kiểm tra tour yêu thích
+
                     return TourListDTO.builder()
                             .tourId(tour.getTourId())
                             .tourName(tour.getTourName())
+                            .tourType(tour.getTourType())
                             .tourDescription(tour.getTourDescription())
                             .price(lowestPrice)
                             .duration(tour.getDuration())
@@ -207,19 +271,31 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                                     .orElse(null))
                             .startLocation(tour.getStartLocation())
                             .startDate(tour.getDepartures().stream()
-                                    .findFirst()
+                                    .filter(departure -> departure.getStartDate().isAfter(LocalDateTime.now().plusDays(3)))
+                                    .findAny()
                                     .map(Departure::getStartDate)
                                     .orElse(null))
                             .availableSeats(tour.getDepartures().stream()
                                     .findFirst()
                                     .map(Departure::getAvailableSeats)
                                     .orElse(0))
-                            .imageUrl(tour.getImages().isEmpty() ? null : tour.getImages().iterator().next().getImageUrl())
+                            .imageUrl(tour.getImages().isEmpty() ? null :
+                                    tour.getImages().iterator().next().getImageUrl())
+                            .isFavorite(isFavorite)
                             .build();
                 })
-                .collect(Collectors.toList()); // Tạo danh sách tourListDTO
+                .collect(Collectors.toList());
 
-        return new PageImpl<>(tourListDTOs, pageable, toursPage.getTotalElements()); // Trả về PageImpl
+        return new PageImpl<>(paginatedTours, PageRequest.of(page, size), totalFilteredElements);
+    }
+
+    private boolean matchesParticipantType(Tour tour, ParticipantType participantType) {
+        if (participantType == null) {
+            return true;
+        }
+        return tour.getDepartures().stream()
+                .flatMap(departure -> departure.getTourPricing().stream())
+                .anyMatch(pricing -> pricing.getParticipantType() == participantType);
     }
     @PostConstruct
     public void initializeModelMapper() {
@@ -342,12 +418,14 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 .collect(Collectors.toList());
         // Ánh xạ danh sách đánh giá
         List<ReviewDTO> reviewDTOs = tour.getReviews().stream()
+                .sorted(Comparator.comparing(Review::getReviewDate).reversed())
                 .map(review -> {
                     ReviewDTO reviewDTO = new ReviewDTO();
                     reviewDTO.setReviewId(review.getReviewId());
                     reviewDTO.setRating(review.getRating());
                     reviewDTO.setComment(review.getComment());
                     reviewDTO.setReviewDate(review.getReviewDate());
+                    reviewDTO.setUserId(review.getUser() != null ? review.getUser().getUserId() : null);
                     reviewDTO.setUserName(review.getUser() != null ? review.getUser().getFullName() : "");
                     return reviewDTO;
                 })

@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto;import lombok.*;import java.time.LocalDateTime;@Getter@Setter@NoArgsConstructor@AllArgsConstructorpublic class FavoriteTourDTO {    private Long id;    private Long userId;    private Long tourId;    private LocalDateTime addedDate;}
