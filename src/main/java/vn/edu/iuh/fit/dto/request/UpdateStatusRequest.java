@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto.request;import lombok.Data;import vn.edu.iuh.fit.enums.AssignStatus;@Datapublic class UpdateStatusRequest {    private AssignStatus status;}

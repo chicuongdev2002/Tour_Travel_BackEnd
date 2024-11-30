@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto;import lombok.AllArgsConstructor;import lombok.Data;import lombok.NoArgsConstructor;import vn.edu.iuh.fit.enums.TourType;@Data@AllArgsConstructor@NoArgsConstructorpublic class TourSimpleDTO {    private Long id;    private String tourName;    private TourType tourType;}
