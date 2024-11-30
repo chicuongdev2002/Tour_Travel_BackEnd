@@ -8,12 +8,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dto.BookingDTO;
+import vn.edu.iuh.fit.dto.BookingDetailDTO;
 import vn.edu.iuh.fit.dto.respone.ItineraryResponse;
 import vn.edu.iuh.fit.dto.BookingHasPrice;
 import vn.edu.iuh.fit.entity.Booking;
 import vn.edu.iuh.fit.entity.Departure;
 import vn.edu.iuh.fit.entity.Payment;
 import vn.edu.iuh.fit.entity.User;
+import vn.edu.iuh.fit.enums.CheckInStatus;
 import vn.edu.iuh.fit.mailservice.EmailService;
 import vn.edu.iuh.fit.service.BookingService;
 import vn.edu.iuh.fit.service.DepartureService;
@@ -85,7 +87,9 @@ public class BookingController {
                     .bookingDate(LocalDateTime.now())
                     .participants(participants)
                     .isActive(true)
-//                    .address(address)
+                    .address(address)
+                    .checkinStatus(CheckInStatus.NOT_CHECKED_IN)
+                    .checkinTime(LocalDateTime.now())
                     .build();
             bookingDTO = bookingService.convertDTO(bookingService.create(booking));
             //
@@ -180,5 +184,10 @@ public class BookingController {
     @GetMapping("/itinerary/{userId}")
     public ItineraryResponse getUserItinerary(@PathVariable long userId) {
         return bookingService.getItineraryByUserId(userId);
+    }
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<BookingDetailDTO>> getBookingsByUserId(@PathVariable long userId) {
+        List<BookingDetailDTO> bookings = bookingService.getBookingsByUserId(userId);
+        return new ResponseEntity<>(bookings, HttpStatus.OK);
     }
 }
