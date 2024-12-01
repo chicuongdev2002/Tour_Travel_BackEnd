@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto;import lombok.*;@Getter@Setter@NoArgsConstructor@AllArgsConstructorpublic class MonthlyReviewStatistics {    private String month;    private int totalReviews;    private double averageRating;}

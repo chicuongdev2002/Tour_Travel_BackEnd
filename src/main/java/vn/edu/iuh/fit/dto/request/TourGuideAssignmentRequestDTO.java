@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto.request;import lombok.Getter;import lombok.Setter;import vn.edu.iuh.fit.enums.AssignStatus;@Getter@Setterpublic class TourGuideAssignmentRequestDTO {    private Long[] guideIds;    private Long departureId;}

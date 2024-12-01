@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto;import lombok.AllArgsConstructor;import lombok.Getter;import lombok.NoArgsConstructor;import lombok.Setter;import java.math.BigDecimal;@Setter@Getter@NoArgsConstructor@AllArgsConstructorpublic class MonthlyRevenueDTO {    private int month;    private BigDecimal revenue;    private double growthRate;}

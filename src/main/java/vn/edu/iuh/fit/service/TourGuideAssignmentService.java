@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.service;import vn.edu.iuh.fit.dto.TourAssignmentDTO;import vn.edu.iuh.fit.entity.*;import java.util.List;public interface TourGuideAssignmentService extends CrudService<TourGuideAssignment, Long> {    List<TourAssignmentDTO> getAllAssignments();}

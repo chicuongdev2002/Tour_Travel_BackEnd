@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto;import lombok.*;@Getter@Setter@NoArgsConstructor@AllArgsConstructorpublic class TourGuideUpdateDTO extends UserInfoDTO{    private int experienceYear;}
