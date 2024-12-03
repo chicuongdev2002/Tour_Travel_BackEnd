@@ -1,6 +1,7 @@
 package vn.edu.iuh.fit.controller;
 
 import com.google.gson.Gson;
+import com.google.zxing.WriterException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -12,10 +13,15 @@ import vn.edu.iuh.fit.dto.BookingDTO;
 import vn.edu.iuh.fit.dto.request.BookingRequest;
 import vn.edu.iuh.fit.entity.Booking;
 import vn.edu.iuh.fit.entity.Payment;
+import vn.edu.iuh.fit.entity.User;
 import vn.edu.iuh.fit.enums.PaymentMethod;
+import vn.edu.iuh.fit.mailservice.EmailService;
 import vn.edu.iuh.fit.service.APIService;
+import vn.edu.iuh.fit.service.BookingService;
 import vn.edu.iuh.fit.service.PaymentService;
+import vn.edu.iuh.fit.service.UserService;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -35,6 +41,13 @@ public class PaymentController {
 
     @Autowired
     private BookingController bookingController;
+
+    @Autowired
+    private EmailService emailService;
+    @Autowired
+    private UserService userService;
+    @Autowired
+    private BookingService bookingService;
 
     @PostMapping("/momo")
     @Transactional(rollbackOn = Exception.class)
@@ -83,7 +96,7 @@ public class PaymentController {
 
     @MessageMapping("/callBackPayment")
     @PostMapping("/momo/callback")
-    public void callBack(@RequestBody LinkedHashMap<String, Object> requestBody) {
+    public void callBack(@RequestBody LinkedHashMap<String, Object> requestBody) throws IOException, WriterException {
         BookingRequest extraData = BookingRequest.builder()
                 .bookingId(requestBody.get("orderId").toString())
                 .userId(Long.parseLong(requestBody.get("extraData").toString().split("#")[0]))
@@ -95,6 +108,10 @@ public class PaymentController {
                 .paymentMethod(PaymentMethod.BANKING)
                 .booking(Booking.builder().bookingId(requestBody.get("orderId").toString()).build())
                 .build();
+        byte[] qrCodeBase64 = bookingController.generateQRCode(extraData.getBookingId());
+        User user = userService.getById(extraData.getUserId());
+        Booking booking = bookingService.getById(extraData.getBookingId());
+        emailService.sendBookingConfirmationEmail(user.getEmail(), bookingService.convertDTO(booking), qrCodeBase64);
         paymentService.create(payment);
         simpMessagingTemplate.convertAndSendToUser(extraData.getUserId() + "", "callBackPayment", extraData);
     }
