@@ -3,6 +3,7 @@ package vn.edu.iuh.fit.controller;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,12 +12,10 @@ import vn.edu.iuh.fit.dto.BookingDTO;
 import vn.edu.iuh.fit.dto.BookingDetailDTO;
 import vn.edu.iuh.fit.dto.respone.ItineraryResponse;
 import vn.edu.iuh.fit.dto.BookingHasPrice;
-import vn.edu.iuh.fit.entity.Booking;
-import vn.edu.iuh.fit.entity.Departure;
-import vn.edu.iuh.fit.entity.Payment;
-import vn.edu.iuh.fit.entity.User;
+import vn.edu.iuh.fit.entity.*;
 import vn.edu.iuh.fit.enums.CheckInStatus;
 import vn.edu.iuh.fit.mailservice.EmailService;
+import vn.edu.iuh.fit.repositories.NotificationRepository;
 import vn.edu.iuh.fit.service.BookingService;
 import vn.edu.iuh.fit.service.DepartureService;
 import vn.edu.iuh.fit.service.UserService;
@@ -36,6 +35,7 @@ import vn.edu.iuh.fit.service.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -59,6 +59,11 @@ public class BookingController {
 
     @Autowired
     private PaymentService paymentService;
+
+    @Autowired
+    private NotificationService notificationService;
+    @Autowired
+    private NotificationRepository notificationRepository;
 
 
     @PostMapping("/createBooking")
@@ -92,11 +97,6 @@ public class BookingController {
                     .checkinTime(LocalDateTime.now())
                     .build();
             bookingDTO = bookingService.convertDTO(bookingService.create(booking));
-            //
-            byte[] qrCodeBase64 = generateQRCode(booking.getBookingId());
-            System.out.println("QR Code Base64: " + qrCodeBase64);
-            emailService.sendBookingConfirmationEmail(user.getEmail(), bookingDTO, qrCodeBase64);
-            //
 
             if(paymentMethod != null){
                 Payment payment = Payment.builder()
@@ -105,6 +105,9 @@ public class BookingController {
                         .paymentMethod(PaymentMethod.CASH)
                         .build();
                 paymentService.create(payment);
+                byte[] qrCodeBase64 = generateQRCode(booking.getBookingId());
+                System.out.println("QR Code Base64: " + qrCodeBase64);
+                emailService.sendBookingConfirmationEmail(user.getEmail(), bookingDTO, qrCodeBase64);
             }
         } catch (Exception e){
             if(e.getMessage().equals("Không đủ chỗ trống!"))
@@ -114,7 +117,7 @@ public class BookingController {
         return ResponseEntity.ok(bookingDTO);
     }
 
-    private byte[] generateQRCode(String bookingId) throws WriterException, IOException {
+    public byte[] generateQRCode(String bookingId) throws WriterException, IOException {
         QRCodeWriter qrCodeWriter = new QRCodeWriter();
         BitMatrix bitMatrix = qrCodeWriter.encode(String.valueOf(bookingId), BarcodeFormat.QR_CODE, 200, 200);
         BufferedImage image = new BufferedImage(200, 200, BufferedImage.TYPE_INT_RGB);
@@ -150,9 +153,16 @@ public class BookingController {
     public ResponseEntity<Page<BookingHasPrice>> getPageBookingHasPrice(@RequestParam(defaultValue = "0") int page,
                                                                         @RequestParam(defaultValue = "10") int size,
                                                                         @RequestParam(required = false) String sortBy,
-                                                                        @RequestParam(required = false) String sortDirection){
-        Page<BookingHasPrice> pageBooking = bookingService.getPageList(page, size, sortBy, sortDirection)
-                .map(b -> {
+                                                                        @RequestParam(required = false) String sortDirection,
+                                                                        @RequestParam(required = false) long userId){
+        Page<Booking> lstBooking = bookingService.getPageList(page, size, sortBy, sortDirection);
+        List<Booking> lst;
+        if(userId == 0)
+            lst = lstBooking.getContent();
+        else
+            lst = lstBooking.getContent().stream().filter(b -> b.getUser().getUserId() == userId).toList();
+        Page<BookingHasPrice> pageBooking = new PageImpl<>(
+        lst.stream().map(b -> {
                     BookingHasPrice bookingHasPrice = new BookingHasPrice();
                     bookingHasPrice.setBooking(b);
                     bookingHasPrice.setPrice(tourPricingService.calculatePrice(b));
@@ -160,7 +170,7 @@ public class BookingController {
                     bookingHasPrice.setPaymentDate(payment.getPaymentDate());
                     bookingHasPrice.setPaymentMethod(payment.getPaymentMethod());
                     return bookingHasPrice;
-                });
+                }).toList());
         return new ResponseEntity<>(pageBooking, HttpStatus.OK);
     }
 
@@ -169,6 +179,19 @@ public class BookingController {
         Booking booking = bookingService.getById(bookingId);
         if(booking == null)
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Không tìm thấy đơn đặt tour");
+        if(booking.isActive()){
+            Notification notification = Notification.builder()
+                    .sender(booking.getUser())
+                    .receiver(User.builder().userId(21).build())
+                    .createDate(LocalDateTime.now())
+                    .messages("$$##Cancel_Booking##$$"+bookingId)
+                    .build();
+            notificationService.create(notification);
+        }
+        else{
+            Notification n = notificationService.findBySenderAndMessage(booking.getUser(), "$$##Cancel_Booking##$$"+bookingId);
+            notificationService.delete(n.getId());
+        }
         booking.setActive(!booking.isActive());
         bookingService.update(booking);
         return ResponseEntity.status(HttpStatus.OK).body("Update thành công");
@@ -189,5 +212,17 @@ public class BookingController {
     public ResponseEntity<List<BookingDetailDTO>> getBookingsByUserId(@PathVariable long userId) {
         List<BookingDetailDTO> bookings = bookingService.getBookingsByUserId(userId);
         return new ResponseEntity<>(bookings, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/cancelBooking/{id}")
+    @Transactional
+    public ResponseEntity<String> cancelBooking(@PathVariable String id, @RequestParam long userId){
+        Payment payment = paymentService.getPaymentByBooking(id);
+        User user = userService.getById(userId);
+        Notification notification = notificationService.findBySenderAndMessage(user, "$$##Cancel_Booking##$$"+id);
+        paymentService.delete(payment.getPaymentId());
+        bookingService.delete(id);
+        notificationService.delete(notification.getId());
+        return ResponseEntity.ok("Complete");
     }
 }

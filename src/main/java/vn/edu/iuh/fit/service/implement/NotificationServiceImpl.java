@@ -25,4 +25,9 @@ public class NotificationServiceImpl extends AbstractCrudService<Notification, L
     public List<Notification> findAllByUserOrderByCreateDateDesc(User user) {
         return notificationRepository.findAllBySenderOrReceiverOrderByCreateDateDesc(user, user);
     }
+
+    @Override
+    public Notification findBySenderAndMessage(User sender, String message) {
+        return notificationRepository.findFirstBySenderAndMessages(sender, message);
+    }
 }
