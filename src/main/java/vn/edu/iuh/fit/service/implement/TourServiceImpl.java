@@ -289,9 +289,8 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                                     .map(Departure::getStartDate)
                                     .orElse(null))
                             .availableSeats(tour.getDepartures().stream()
-                                    .findFirst()
                                     .map(Departure::getAvailableSeats)
-                                    .orElse(0))
+                                    .reduce(0, Integer::sum))
                             .imageUrl(tour.getImages().isEmpty() ? null :
                                     tour.getImages().iterator().next().getImageUrl())
                             .isFavorite(isFavorite)

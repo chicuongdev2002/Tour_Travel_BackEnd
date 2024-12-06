@@ -182,7 +182,7 @@ public class BookingController {
         if(booking.isActive()){
             Notification notification = Notification.builder()
                     .sender(booking.getUser())
-                    .receiver(User.builder().userId(21).build())
+                    .receiver(User.builder().userId(12).build())
                     .createDate(LocalDateTime.now())
                     .messages("$$##Cancel_Booking##$$"+bookingId)
                     .build();
