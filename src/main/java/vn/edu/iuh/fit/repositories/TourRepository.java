@@ -90,4 +90,5 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
     @Query("SELECT t FROM Tour t")
     List<Tour> findAllTours();
     List<Tour> findByUser(User user);
+    Page<Tour> findByUser_UserId(Long userId, Pageable pageable);
 }
