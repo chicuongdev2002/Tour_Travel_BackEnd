@@ -437,6 +437,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 .collect(Collectors.toList());
         // Ánh xạ danh sách đánh giá
         List<ReviewDTO> reviewDTOs = tour.getReviews().stream()
+//                .filter(review -> review.isActive())
                 .sorted(Comparator.comparing(Review::getReviewDate).reversed())
                 .map(review -> {
                     ReviewDTO reviewDTO = new ReviewDTO();
@@ -446,6 +447,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                     reviewDTO.setReviewDate(review.getReviewDate());
                     reviewDTO.setUserId(review.getUser() != null ? review.getUser().getUserId() : null);
                     reviewDTO.setUserName(review.getUser() != null ? review.getUser().getFullName() : "");
+                    reviewDTO.setActive(review.isActive());
                     return reviewDTO;
                 })
                 .collect(Collectors.toList());
