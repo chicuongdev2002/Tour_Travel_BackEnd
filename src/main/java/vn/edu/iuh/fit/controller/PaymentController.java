@@ -4,14 +4,10 @@ import com.google.gson.Gson;
 import com.google.zxing.WriterException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
 import vn.edu.iuh.fit.config.MomoPaymentConfig;
 import vn.edu.iuh.fit.dto.BookingDTO;
 import vn.edu.iuh.fit.dto.request.BookingRequest;
@@ -123,31 +119,5 @@ public class PaymentController {
     @GetMapping("/booking")
     public ResponseEntity<Payment> getPaymentByBooking(@RequestParam String bookingId){
         return ResponseEntity.ok(paymentService.getPaymentByBooking(bookingId));
-    }
-
-    @Autowired
-    private RestTemplate restTemplate;
-
-    @GetMapping("/testapi")
-    public void testApi(){
-        String url = "https://api.dify.ai/v1/chat-messages";
-
-        Map<String, Object> requestBodyMap = new HashMap<>();
-        requestBodyMap.put("inputs", new Object());
-        requestBodyMap.put("query", "cho tôi 1 số tour nổi tiếng ở phú yên");
-        requestBodyMap.put("response_mode", "streaming");
-        requestBodyMap.put("conversation_id", "");
-        requestBodyMap.put("user", "abc-123");
-        Gson gson = new Gson();
-        String requestBody = gson.toJson(requestBodyMap);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth("app-wkO00LhNJwAYYs3dtIFaBoL9");
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-        String s = response.getBody();
-        System.out.println(s);
     }
 }
