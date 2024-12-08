@@ -18,4 +18,5 @@ public class TourRequest {
     private List<TourDestination> tourDestinations;
     private List<TourPricing> tourPricing;
     private List<Image> images;
+    private long userId;
 }
