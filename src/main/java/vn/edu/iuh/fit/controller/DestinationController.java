@@ -4,14 +4,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+import vn.edu.iuh.fit.dto.request.DestinationRequest;
 import vn.edu.iuh.fit.entity.Destination;
+import vn.edu.iuh.fit.entity.Image;
 import vn.edu.iuh.fit.entity.Tour;
 import vn.edu.iuh.fit.entity.TourDestination;
 import vn.edu.iuh.fit.service.DestinationService;
+import vn.edu.iuh.fit.service.ImageService;
 import vn.edu.iuh.fit.service.TourDestinationService;
 import vn.edu.iuh.fit.service.TourService;
 
@@ -22,13 +23,16 @@ import java.util.List;
 @RequestMapping("api/destinations")
 public class DestinationController {
     @Autowired
-    DestinationService destinationService;
+    private DestinationService destinationService;
 
     @Autowired
-    TourDestinationService tourDestinationService;
+    private TourDestinationService tourDestinationService;
 
     @Autowired
-    TourService tourService;
+    private TourService tourService;
+
+    @Autowired
+    private ImageService imageService;
 
     @GetMapping
     public ResponseEntity<Object> getListByTourId(@RequestParam long tourId){
@@ -49,5 +53,23 @@ public class DestinationController {
                                                         @RequestParam(required = false) String sortDirection){
         Page<Destination> pageDestination = destinationService.getPageDestination(page, size, sortBy, sortDirection);
         return new ResponseEntity<>(pageDestination, HttpStatus.OK);
+    }
+
+    @PostMapping("/addDestination")
+    @Transactional
+    public ResponseEntity<Destination> addDestination(@RequestBody DestinationRequest destinationRequest){
+        Destination destination = Destination.builder()
+                .name(destinationRequest.getName())
+                .description(destinationRequest.getDescription())
+                .province(destinationRequest.getProvince())
+                .build();
+        destinationService.create(destination);
+        if(destination.getImages() == null)
+            return new ResponseEntity<>(destination, HttpStatus.CREATED);
+        Image img = new Image();
+        img.setDestination(destination);
+        img.setImageUrl(destinationRequest.getImage());
+        imageService.create(img);
+        return new ResponseEntity<>(destination, HttpStatus.CREATED);
     }
 }
