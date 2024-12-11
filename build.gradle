@@ -56,7 +56,12 @@ dependencies {
     implementation group: 'com.google.zxing', name: 'core', version: '3.5.3'
 // https://mvnrepository.com/artifact/com.google.zxing/javase
     implementation group: 'com.google.zxing', name: 'javase', version: '3.5.3'
-
+// https://mvnrepository.com/artifact/io.jsonwebtoken/jjwt-api
+// JWT dependencies
+    implementation group: 'io.jsonwebtoken', name: 'jjwt-api', version: '0.11.5'
+    runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-impl', version: '0.11.5'
+    runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-jackson', version: '0.11.5'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
     implementation 'org.hibernate.validator:hibernate-validator:8.0.0.Final'

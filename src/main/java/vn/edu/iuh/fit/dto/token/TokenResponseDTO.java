@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto.token;import lombok.*;import java.time.LocalDateTime;@Getter@Setter@NoArgsConstructor@AllArgsConstructor@Builderpublic class TokenResponseDTO {    private String token;    private String refreshToken;    private LocalDateTime tokenExpirationDate;    private LocalDateTime refreshTokenExpirationDate;}
