@@ -10,12 +10,16 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.iuh.fit.dto.BookingDTO;
 import vn.edu.iuh.fit.dto.BookingDetailDTO;
+import vn.edu.iuh.fit.dto.BookingViewDetailDTO;
 import vn.edu.iuh.fit.dto.respone.ItineraryResponse;
 import vn.edu.iuh.fit.dto.BookingHasPrice;
 import vn.edu.iuh.fit.entity.*;
 import vn.edu.iuh.fit.enums.CheckInStatus;
 import vn.edu.iuh.fit.mailservice.EmailService;
+import vn.edu.iuh.fit.repositories.BookingRepository;
+import vn.edu.iuh.fit.repositories.ExtendBookingRepository;
 import vn.edu.iuh.fit.repositories.NotificationRepository;
+import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.service.BookingService;
 import vn.edu.iuh.fit.service.DepartureService;
 import vn.edu.iuh.fit.service.UserService;
@@ -63,12 +67,18 @@ public class BookingController {
     @Autowired
     private NotificationService notificationService;
     @Autowired
-    private NotificationRepository notificationRepository;
+    private ExtendBookingRepository extendBookingRepository;
+    @Autowired
+    private TourService tourService;
+    @Autowired
+    private BookingRepository bookingRepository;
+    @Autowired
+    private UserRepository userRepository;
 
 
     @PostMapping("/createBooking")
     @Transactional(rollbackFor = Exception.class)
-    public ResponseEntity<BookingDTO> createBooking(@RequestParam String bookingID,
+    public synchronized ResponseEntity<BookingDTO> createBooking(@RequestParam String bookingID,
                                                     @RequestParam long userId,
                                                     @RequestParam long departureId,
                                                     @RequestParam String participants,
@@ -78,6 +88,10 @@ public class BookingController {
         try{
             User user = userService.getById(userId);
             Departure departure = departureService.getById(departureId);
+            Tour tour = tourService.getById(departure.getTour().getTourId());
+            User tourProvider = userService.getById(tour.getUser().getUserId());
+            tour.setUser(tourProvider);
+            departure.setTour(tour);
             String[] arrParticipant = participants.split(",");
             int newAvailableSeats = departure.getAvailableSeats() - Integer.parseInt(arrParticipant[0]) - Integer.parseInt(arrParticipant[1]) - Integer.parseInt(arrParticipant[2]);
             if(newAvailableSeats < 0) {
@@ -150,7 +164,7 @@ public class BookingController {
     }
 
     @GetMapping("/page/has-price")
-    public ResponseEntity<Page<BookingHasPrice>> getPageBookingHasPrice(@RequestParam(defaultValue = "0") int page,
+    public ResponseEntity<Page<BookingViewDetailDTO>> getPageBookingHasPrice(@RequestParam(defaultValue = "0") int page,
                                                                         @RequestParam(defaultValue = "10") int size,
                                                                         @RequestParam(required = false) String sortBy,
                                                                         @RequestParam(required = false) String sortDirection,
@@ -161,15 +175,18 @@ public class BookingController {
             lst = lstBooking.getContent();
         else
             lst = lstBooking.getContent().stream().filter(b -> b.getUser().getUserId() == userId).toList();
-        Page<BookingHasPrice> pageBooking = new PageImpl<>(
+        Page<BookingViewDetailDTO> pageBooking = new PageImpl<>(
         lst.stream().map(b -> {
-                    BookingHasPrice bookingHasPrice = new BookingHasPrice();
-                    bookingHasPrice.setBooking(b);
-                    bookingHasPrice.setPrice(tourPricingService.calculatePrice(b));
-                    Payment payment = paymentService.getPaymentByBooking(b.getBookingId());
-                    bookingHasPrice.setPaymentDate(payment.getPaymentDate());
-                    bookingHasPrice.setPaymentMethod(payment.getPaymentMethod());
-                    return bookingHasPrice;
+                    ExtendBooking extendBooking = extendBookingRepository.findById(b.getBookingId()).orElse(null);
+                    if(extendBooking == null)
+                        return null;
+                    User user = userService.getById(b.getUser().getUserId());
+            return BookingViewDetailDTO.builder()
+                    .extendBooking(extendBooking)
+                    .participants(b.getParticipants())
+                    .active(b.isActive())
+                    .fullName(user.getFullName())
+                    .build();
                 }).toList());
         return new ResponseEntity<>(pageBooking, HttpStatus.OK);
     }
@@ -182,7 +199,7 @@ public class BookingController {
         if(booking.isActive()){
             Notification notification = Notification.builder()
                     .sender(booking.getUser())
-                    .receiver(User.builder().userId(12).build())
+                    .receiver(User.builder().userId(21).build())
                     .createDate(LocalDateTime.now())
                     .messages("$$##Cancel_Booking##$$"+bookingId)
                     .build();
@@ -194,6 +211,7 @@ public class BookingController {
         }
         booking.setActive(!booking.isActive());
         bookingService.update(booking);
+        ExtendBooking extendBooking = extendBookingRepository.findById(bookingId).orElse(null);
         return ResponseEntity.status(HttpStatus.OK).body("Update thành công");
     }
     //lây danh sách booking theo bookingId
@@ -222,7 +240,30 @@ public class BookingController {
         Notification notification = notificationService.findBySenderAndMessage(user, "$$##Cancel_Booking##$$"+id);
         paymentService.delete(payment.getPaymentId());
         bookingService.delete(id);
+        ExtendBooking eb = extendBookingRepository.findById(id).orElse(null);
+        if (eb != null)
+            extendBookingRepository.delete(eb);
         notificationService.delete(notification.getId());
         return ResponseEntity.ok("Complete");
+    }
+
+    @GetMapping("/getBooking/{id}")
+    public ResponseEntity<BookingViewDetailDTO> getBooking(@PathVariable String id){
+        ExtendBooking eb = extendBookingRepository.findById(id).orElse(null);
+        if(eb == null)
+            return ResponseEntity.ok(null);
+        Booking booking = bookingRepository.findById(eb.getBookingId()).orElse(null);
+        if(booking == null)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        User user = userRepository.findById(booking.getUser().getUserId()).orElse(null);
+        if(user == null)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        BookingViewDetailDTO bookingViewDetailDTO = BookingViewDetailDTO.builder()
+                .extendBooking(eb)
+                .participants(booking.getParticipants())
+                .fullName(user.getFullName())
+                .active(booking.isActive())
+                .build();
+        return ResponseEntity.ok(bookingViewDetailDTO);
     }
 }
