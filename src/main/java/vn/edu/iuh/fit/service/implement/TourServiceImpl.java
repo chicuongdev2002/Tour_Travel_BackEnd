@@ -437,6 +437,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 .collect(Collectors.toList());
         // Ánh xạ danh sách đánh giá
         List<ReviewDTO> reviewDTOs = tour.getReviews().stream()
+//                .filter(review -> review.isActive())
                 .sorted(Comparator.comparing(Review::getReviewDate).reversed())
                 .map(review -> {
                     ReviewDTO reviewDTO = new ReviewDTO();
@@ -446,6 +447,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                     reviewDTO.setReviewDate(review.getReviewDate());
                     reviewDTO.setUserId(review.getUser() != null ? review.getUser().getUserId() : null);
                     reviewDTO.setUserName(review.getUser() != null ? review.getUser().getFullName() : "");
+                    reviewDTO.setActive(review.isActive());
                     return reviewDTO;
                 })
                 .collect(Collectors.toList());
@@ -563,6 +565,48 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         });
     }
     @Override
+    public Page<TourResponseDTO> getListTourByUserId(Long userId, Pageable pageable) {
+        Pageable sortedByStartDate = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "departures.startDate"));
+
+        Page<Tour> toursPage = tourRepository.findByUser_UserId(userId, sortedByStartDate);
+
+        return toursPage.map(tour -> {
+            List<TourResponseDTO.DepartureResponseDTO> departures = tour.getDepartures().stream().map(departure -> {
+                List<TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO> pricingList = departure.getTourPricing().stream()
+                        .map(pricing -> new TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO(
+                                pricing.getPrice(),
+                                pricing.getParticipantType().name()
+                        )).collect(Collectors.toList());
+
+                return new TourResponseDTO.DepartureResponseDTO(
+                        departure.getDepartureId(),
+                        departure.getStartDate(),
+                        departure.getEndDate(),
+                        departure.getAvailableSeats(),
+                        departure.getMaxParticipants(),
+                        pricingList
+                );
+            }).collect(Collectors.toList());
+
+            List<String> images = tour.getImages().stream()
+                    .map(Image::getImageUrl)
+                    .collect(Collectors.toList());
+
+            return new TourResponseDTO(
+                    tour.getTourId(),
+                    tour.getTourName(),
+                    tour.getTourDescription(),
+                    tour.getDuration(),
+                    tour.getStartLocation(),
+                    tour.getTourType(),
+                    tour.isActive(),
+                    tour.getUser().getFullName(),
+                    departures,
+                    images
+            );
+        });
+    }
+    @Override
     public TourInfoDTO convertToDTO(Tour tour) {
         return modelMapper.map(tour, TourInfoDTO.class);
     }
@@ -575,6 +619,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         tourRepository.save(tour);
         logger.info("Tour with ID: {} has been approved and set to active.", id);
     }
+
     @Override
     public void deleteTour(Long id) {
         logger.info("Delete tour with ID: {}", id);
