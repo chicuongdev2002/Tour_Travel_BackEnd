@@ -538,20 +538,33 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
 
         return toursPage.map(tour -> {
             List<TourResponseDTO.DepartureResponseDTO> departures = tour.getDepartures().stream().map(departure -> {
-                // Lấy giá gần nhất trước ngày khởi hành
-                Optional<TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO> latestPricingOpt = departure.getTourPricing().stream()
-                        .filter(pricing -> pricing.getModifiedDate().isBefore(departure.getStartDate()))
-                        .max(Comparator.comparing(TourPricing::getModifiedDate))
-                        .map(pricing -> new TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO(
-                                pricing.getPrice(),
-                                pricing.getParticipantType().name(),
-                                pricing.getModifiedDate()
-                        ));
+                // Lấy toàn bộ giá cho mỗi departure
+                List<TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO> tourPricingList =
+                        Arrays.stream(ParticipantType.values())
+                                .map(participantType -> {
+                                    TourPricing tourPricing = tourPricingRepository
+                                            .findFirstByDepartureAndParticipantTypeAndModifiedDateBeforeOrderByModifiedDateDesc(
+                                                    departure, participantType, departure.getStartDate()
+                                            );
 
-                // Sử dụng giá gần nhất nếu có, hoặc trả về danh sách rỗng
-                List<TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO> pricingList = latestPricingOpt
-                        .map(pricing -> Collections.singletonList(pricing))
-                        .orElse(Collections.emptyList());
+                                    // Nếu không tìm thấy giá, tạo một pricing với giá 0
+                                    if (tourPricing == null) {
+                                        tourPricing = TourPricing.builder()
+                                                .modifiedDate(departure.getStartDate().plusSeconds(-1))
+                                                .price(BigDecimal.ZERO)
+                                                .departure(departure)
+                                                .participantType(participantType)
+                                                .build();
+                                        tourPricingRepository.save(tourPricing);
+                                    }
+
+                                    return new TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO(
+                                            tourPricing.getPrice(),
+                                            tourPricing.getParticipantType().name(),
+                                            tourPricing.getModifiedDate()
+                                    );
+                                })
+                                .collect(Collectors.toList());
 
                 return new TourResponseDTO.DepartureResponseDTO(
                         departure.getDepartureId(),
@@ -560,10 +573,11 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                         departure.getAvailableSeats(),
                         departure.getMaxParticipants(),
                         departure.isActive(),
-                        pricingList
+                        tourPricingList
                 );
             }).collect(Collectors.toList());
 
+            // Phần còn lại của code giữ nguyên như cũ
             List<TourResponseDTO.DestinationDTO> destinations = tour.getTourDestinations().stream()
                     .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
                     .filter(td -> td.getSequenceOrder() > 0)
