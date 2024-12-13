@@ -36,5 +36,4 @@ public class ExtendBooking {
     private String phoneNumber;
     private String email;
     private long tourId;
-    private LocalDateTime bookingDate;
 }

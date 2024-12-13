@@ -16,7 +16,10 @@ import vn.edu.iuh.fit.dto.BookingHasPrice;
 import vn.edu.iuh.fit.entity.*;
 import vn.edu.iuh.fit.enums.CheckInStatus;
 import vn.edu.iuh.fit.mailservice.EmailService;
-import vn.edu.iuh.fit.repositories.*;
+import vn.edu.iuh.fit.repositories.BookingRepository;
+import vn.edu.iuh.fit.repositories.ExtendBookingRepository;
+import vn.edu.iuh.fit.repositories.NotificationRepository;
+import vn.edu.iuh.fit.repositories.UserRepository;
 import vn.edu.iuh.fit.service.BookingService;
 import vn.edu.iuh.fit.service.DepartureService;
 import vn.edu.iuh.fit.service.UserService;
@@ -29,7 +32,6 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Base64;
 
 import vn.edu.iuh.fit.enums.PaymentMethod;
@@ -72,8 +74,6 @@ public class BookingController {
     private BookingRepository bookingRepository;
     @Autowired
     private UserRepository userRepository;
-    @Autowired
-    private DiscountRepository discountRepository;
 
 
     @PostMapping("/createBooking")
@@ -83,9 +83,7 @@ public class BookingController {
                                                                  @RequestParam long departureId,
                                                                  @RequestParam String participants,
                                                                  @RequestParam String address,
-                                                                 @RequestParam(required = false) String paymentMethod,
-                                                                 @RequestParam(required = false) String discountId
-                                                                 ) throws Exception {
+                                                                 @RequestParam(required = false) String paymentMethod) throws Exception {
         BookingDTO bookingDTO;
         try{
             User user = userService.getById(userId);
@@ -99,17 +97,6 @@ public class BookingController {
             if(newAvailableSeats < 0) {
                 throw new Exception("Không đủ chỗ trống!");
             }
-            long discount = 0;
-            if(discountId != null){
-                Discount d = discountRepository.findFirstByDiscountCode(discountId);
-                if(d != null) {
-                    if(d.getCountUse() == 0)
-                        throw new Exception("Mã giảm giá đ hết lượt sử dụng!");
-                    discount = d.getDiscountAmount();
-                    d.setCountUse(d.getCountUse()-1);
-                    discountRepository.save(d);
-                }
-            }
             departure.setAvailableSeats(newAvailableSeats);
             departureService.update(departure);
             Booking booking = Booking.builder()
@@ -117,13 +104,14 @@ public class BookingController {
                     .user(user)
                     .departure(departure)
                     .bookingDate(LocalDateTime.now())
-                    .participants(participants+"_"+discount)
+                    .participants(participants)
                     .isActive(true)
                     .address(address)
                     .checkinStatus(CheckInStatus.NOT_CHECKED_IN)
                     .checkinTime(LocalDateTime.now())
                     .build();
             bookingDTO = bookingService.convertDTO(bookingService.create(booking));
+
             if(paymentMethod != null){
                 Payment payment = Payment.builder()
                         .booking(booking)
