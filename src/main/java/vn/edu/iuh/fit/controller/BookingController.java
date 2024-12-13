@@ -79,11 +79,11 @@ public class BookingController {
     @PostMapping("/createBooking")
     @Transactional(rollbackFor = Exception.class)
     public synchronized ResponseEntity<BookingDTO> createBooking(@RequestParam String bookingID,
-                                                    @RequestParam long userId,
-                                                    @RequestParam long departureId,
-                                                    @RequestParam String participants,
-                                                    @RequestParam String address,
-                                                    @RequestParam(required = false) String paymentMethod) throws Exception {
+                                                                 @RequestParam long userId,
+                                                                 @RequestParam long departureId,
+                                                                 @RequestParam String participants,
+                                                                 @RequestParam String address,
+                                                                 @RequestParam(required = false) String paymentMethod) throws Exception {
         BookingDTO bookingDTO;
         try{
             User user = userService.getById(userId);
@@ -165,10 +165,10 @@ public class BookingController {
 
     @GetMapping("/page/has-price")
     public ResponseEntity<Page<BookingViewDetailDTO>> getPageBookingHasPrice(@RequestParam(defaultValue = "0") int page,
-                                                                        @RequestParam(defaultValue = "10") int size,
-                                                                        @RequestParam(required = false) String sortBy,
-                                                                        @RequestParam(required = false) String sortDirection,
-                                                                        @RequestParam(required = false) long userId){
+                                                                             @RequestParam(defaultValue = "10") int size,
+                                                                             @RequestParam(required = false) String sortBy,
+                                                                             @RequestParam(required = false) String sortDirection,
+                                                                             @RequestParam(required = false) long userId){
         Page<Booking> lstBooking = bookingService.getPageList(page, size, sortBy, sortDirection);
         List<Booking> lst;
         if(userId == 0)
@@ -176,17 +176,17 @@ public class BookingController {
         else
             lst = lstBooking.getContent().stream().filter(b -> b.getUser().getUserId() == userId).toList();
         Page<BookingViewDetailDTO> pageBooking = new PageImpl<>(
-        lst.stream().map(b -> {
+                lst.stream().map(b -> {
                     ExtendBooking extendBooking = extendBookingRepository.findById(b.getBookingId()).orElse(null);
                     if(extendBooking == null)
                         return null;
                     User user = userService.getById(b.getUser().getUserId());
-            return BookingViewDetailDTO.builder()
-                    .extendBooking(extendBooking)
-                    .participants(b.getParticipants())
-                    .active(b.isActive())
-                    .fullName(user.getFullName())
-                    .build();
+                    return BookingViewDetailDTO.builder()
+                            .extendBooking(extendBooking)
+                            .participants(b.getParticipants())
+                            .active(b.isActive())
+                            .fullName(user.getFullName())
+                            .build();
                 }).toList());
         return new ResponseEntity<>(pageBooking, HttpStatus.OK);
     }

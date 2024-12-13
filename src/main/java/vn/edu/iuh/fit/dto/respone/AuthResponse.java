@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto.respone;import lombok.AllArgsConstructor;import lombok.Data;import lombok.NoArgsConstructor;@Data@NoArgsConstructor@AllArgsConstructorpublic class AuthResponse {    private String token;//    private String refreshToken;}
