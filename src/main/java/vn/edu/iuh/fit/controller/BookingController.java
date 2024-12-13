@@ -266,4 +266,17 @@ public class BookingController {
                 .build();
         return ResponseEntity.ok(bookingViewDetailDTO);
     }
+
+    @GetMapping("/getByTourId")
+    public ResponseEntity<List<BookingViewDetailDTO>> getExtendByTourId(@RequestParam long tourId){
+        List<ExtendBooking> lst = extendBookingRepository.findAllByTourId(tourId);
+        List<BookingViewDetailDTO> response = new ArrayList<>();
+        if(lst == null || lst.isEmpty())
+            return ResponseEntity.ok(null);
+        lst.forEach(e -> {
+            BookingViewDetailDTO bookingViewDetailDTO = getBooking(e.getBookingId()).getBody();
+            response.add(bookingViewDetailDTO);
+        });
+        return ResponseEntity.ok(response);
+    }
 }
