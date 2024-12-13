@@ -64,7 +64,7 @@ public class DestinationController {
                 .province(destinationRequest.getProvince())
                 .build();
         destinationService.create(destination);
-        if(destination.getImages() == null)
+        if(destinationRequest.getImage() == null)
             return new ResponseEntity<>(destination, HttpStatus.CREATED);
         Image img = new Image();
         img.setDestination(destination);
