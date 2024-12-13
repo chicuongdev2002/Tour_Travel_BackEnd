@@ -62,7 +62,7 @@ public class PaymentController {
                                               @RequestParam String address,
                                               @RequestParam String participants
                                               ) throws Exception {
-        ResponseEntity<BookingDTO> booking = bookingController.createBooking(orderId, userId, departureId, participants, address, null);
+        ResponseEntity<BookingDTO> booking = bookingController.createBooking(orderId, userId, departureId, participants, address, null, null);
         if(booking.getBody() == null)
             throw new Exception();
         MomoPaymentConfig momoPaymentConfig = new MomoPaymentConfig();

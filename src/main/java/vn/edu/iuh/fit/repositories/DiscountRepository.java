@@ -9,5 +9,6 @@ import java.time.LocalDateTime;
 
 public interface DiscountRepository extends JpaRepository<Discount, Long> {
   Discount findFirstByTourAndCountUseIsNullAndStartDateBeforeAndEndDateAfterOrderByDiscountAmountDesc(Tour tour, LocalDateTime startDate, LocalDateTime endDate);
+  Discount findFirstByDiscountCode(String discountCode);
 }
 
