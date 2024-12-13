@@ -25,9 +25,11 @@ import vn.edu.iuh.fit.dto.*;
 import vn.edu.iuh.fit.dto.respone.RevenueStatisticsResponse;
 import vn.edu.iuh.fit.dto.respone.TourResponseDTO;
 import vn.edu.iuh.fit.entity.*;
+import vn.edu.iuh.fit.enums.AccountRole;
 import vn.edu.iuh.fit.enums.ParticipantType;
 import vn.edu.iuh.fit.enums.TourType;
 import vn.edu.iuh.fit.exception.ResourceNotFoundException;
+import vn.edu.iuh.fit.mailservice.EmailService;
 import vn.edu.iuh.fit.repositories.*;
 import vn.edu.iuh.fit.repositories.DepartureRepository;
 import vn.edu.iuh.fit.repositories.TourPricingRepository;
@@ -73,6 +75,8 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     private ImageService imageService;
     @Autowired
     private DiscountService discountService;
+    @Autowired
+    private EmailService emailService;
     private final ModelMapper modelMapper;
     //    @Autowired
 //    private PagedResourcesAssembler<Tour> pagedResourcesAssembler;
@@ -208,33 +212,37 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         List<Tour> filteredTours = allTours.stream()
                 .filter(tour -> tour.isActive() &&
                         tour.getTourType() != TourType.DELETE &&
-                        !tour.getDepartures().isEmpty() &&
+                        tour.getDepartures() != null && !tour.getDepartures().isEmpty() &&
                         tour.getDepartures().stream()
                                 .anyMatch(departure -> departure.isActive() &&
                                         departure.getAvailableSeats() > 0 &&
+                                        departure.getStartDate() != null &&  // Kiểm tra không null
                                         departure.getStartDate().isAfter(threeDaysFromNow))
                 )
                 .filter(tour -> (finalKeyword == null || tour.getTourName().toLowerCase().contains(finalKeyword.toLowerCase())) &&
                         (startLocation == null || tour.getStartLocation().equalsIgnoreCase(startLocation)) &&
                         (finalTourType == null || tour.getTourType() == finalTourType) &&
                         (finalParticipantType == null || matchesParticipantType(tour, finalParticipantType)) &&
-                        (startDate == null || tour.getDepartures().stream().anyMatch(departure -> departure.getStartDate().isAfter(startDate))) &&
-                        (endDate == null || tour.getDepartures().stream().anyMatch(departure -> departure.getStartDate().isBefore(endDate))) &&
-                        (minPrice == null || tour.getDepartures().stream().flatMap(departure -> departure.getTourPricing().stream())
+                        (startDate == null || tour.getDepartures().stream()
+                                .anyMatch(departure -> departure.getStartDate() != null && departure.getStartDate().isAfter(startDate))) &&  // Kiểm tra không null
+                        (endDate == null || tour.getDepartures().stream()
+                                .anyMatch(departure -> departure.getStartDate() != null && departure.getStartDate().isBefore(endDate))) &&  // Kiểm tra không null
+                        (minPrice == null || tour.getDepartures().stream()
+                                .flatMap(departure -> departure.getTourPricing().stream())
                                 .map(TourPricing::getPrice)
                                 .filter(Objects::nonNull)
                                 .anyMatch(price -> price.compareTo(minPrice) >= 0)) &&
-                        (maxPrice == null || tour.getDepartures().stream().flatMap(departure -> departure.getTourPricing().stream())
+                        (maxPrice == null || tour.getDepartures().stream()
+                                .flatMap(departure -> departure.getTourPricing().stream())
                                 .map(TourPricing::getPrice)
                                 .filter(Objects::nonNull)
                                 .anyMatch(price -> price.compareTo(maxPrice) <= 0))
                 )
                 .collect(Collectors.toList());
 
-        // Retrieve favorite tours if userId is provided
         final Set<Long> favoriteTourIds = new HashSet<>();
         if (userId != null) {
-            User user = userRepository.findById(userId).orElse(null); // Fetch user by ID
+            User user = userRepository.findById(userId).orElse(null);
             if (user != null) {
                 List<FavoriteTour> favoriteTours = favoriteTourRepository.findByUser(user);
                 favoriteTourIds.addAll(favoriteTours.stream()
@@ -252,7 +260,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
             } else if (!t1IsFavorite && t2IsFavorite) {
                 return 1;   // t2 trước t1
             } else {
-                return t2.getCreatedDate().compareTo(t1.getCreatedDate()); // Sắp xếp theo ngày tạo nếu không có yêu thích
+                return t2.getCreatedDate().compareTo(t1.getCreatedDate());
             }
         });
 
@@ -284,7 +292,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                                     .orElse(null))
                             .startLocation(tour.getStartLocation())
                             .startDate(tour.getDepartures().stream()
-                                    .filter(departure -> departure.getStartDate().isAfter(LocalDateTime.now().plusDays(3)))
+                                    .filter(departure -> departure.getStartDate() != null && departure.getStartDate().isAfter(LocalDateTime.now().plusDays(3)))
                                     .findAny()
                                     .map(Departure::getStartDate)
                                     .orElse(null))
@@ -530,11 +538,20 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
 
         return toursPage.map(tour -> {
             List<TourResponseDTO.DepartureResponseDTO> departures = tour.getDepartures().stream().map(departure -> {
-                List<TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO> pricingList = departure.getTourPricing().stream()
+                // Lấy giá gần nhất trước ngày khởi hành
+                Optional<TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO> latestPricingOpt = departure.getTourPricing().stream()
+                        .filter(pricing -> pricing.getModifiedDate().isBefore(departure.getStartDate()))
+                        .max(Comparator.comparing(TourPricing::getModifiedDate))
                         .map(pricing -> new TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO(
                                 pricing.getPrice(),
-                                pricing.getParticipantType().name()
-                        )).collect(Collectors.toList());
+                                pricing.getParticipantType().name(),
+                                pricing.getModifiedDate()
+                        ));
+
+                // Sử dụng giá gần nhất nếu có, hoặc trả về danh sách rỗng
+                List<TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO> pricingList = latestPricingOpt
+                        .map(pricing -> Collections.singletonList(pricing))
+                        .orElse(Collections.emptyList());
 
                 return new TourResponseDTO.DepartureResponseDTO(
                         departure.getDepartureId(),
@@ -542,12 +559,47 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                         departure.getEndDate(),
                         departure.getAvailableSeats(),
                         departure.getMaxParticipants(),
+                        departure.isActive(),
                         pricingList
                 );
             }).collect(Collectors.toList());
 
-            List<String> images = tour.getImages().stream()
-                    .map(Image::getImageUrl)
+            List<TourResponseDTO.DestinationDTO> destinations = tour.getTourDestinations().stream()
+                    .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
+                    .filter(td -> td.getSequenceOrder() > 0)
+                    .map(tourDestination -> {
+                        Destination destination = tourDestination.getDestination();
+                        List<Image> images = imageRepository.findByDestinationId(destination.getDestinationId());
+
+                        logger.info("Destination {} has {} images",
+                                destination.getDestinationId(),
+                                images.size());
+
+                        // Chuyển đổi và trả về DestinationDTO
+                        return new TourResponseDTO.DestinationDTO(
+                                destination.getDestinationId(),
+                                destination.getName(),
+                                destination.getDescription(),
+                                destination.getProvince(),
+                                tourDestination.getSequenceOrder(),
+                                tourDestination.getDuration(),
+                                images.stream()
+                                        .map(image -> new TourResponseDTO.DestinationDTO.ImageDTO(
+                                                image.getImageId(),
+                                                image.getImageUrl()
+                                        ))
+                                        .collect(Collectors.toList())
+                        );
+                    })
+                    .collect(Collectors.toList());
+
+            List<ImageDTO> images = tour.getImages().stream()
+                    .map(image -> {
+                        ImageDTO imageDTO = new ImageDTO();
+                        imageDTO.setImageId(image.getImageId());
+                        imageDTO.setImageUrl(image.getImageUrl());
+                        return imageDTO;
+                    })
                     .collect(Collectors.toList());
 
             return new TourResponseDTO(
@@ -559,6 +611,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                     tour.getTourType(),
                     tour.isActive(),
                     tour.getUser().getFullName(),
+                    destinations,
                     departures,
                     images
             );
@@ -575,7 +628,8 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 List<TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO> pricingList = departure.getTourPricing().stream()
                         .map(pricing -> new TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO(
                                 pricing.getPrice(),
-                                pricing.getParticipantType().name()
+                                pricing.getParticipantType().name(),
+                                pricing.getModifiedDate()
                         )).collect(Collectors.toList());
 
                 return new TourResponseDTO.DepartureResponseDTO(
@@ -584,12 +638,45 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                         departure.getEndDate(),
                         departure.getAvailableSeats(),
                         departure.getMaxParticipants(),
+                        departure.isActive(),
                         pricingList
                 );
             }).collect(Collectors.toList());
+            List<TourResponseDTO.DestinationDTO> destinations= tour.getTourDestinations().stream()
+                    .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
+                    .filter(td -> td.getSequenceOrder() > 0)
+                    .map(tourDestination -> {
+                        Destination destination = tourDestination.getDestination();
+                        List<Image> images = imageRepository.findByDestinationId(destination.getDestinationId());
 
-            List<String> images = tour.getImages().stream()
-                    .map(Image::getImageUrl)
+                        logger.info("Destination {} has {} images",
+                                destination.getDestinationId(),
+                                images.size());
+
+                        // 3. Chuyển đổi và trả về DestinationDTO
+                        return new TourResponseDTO.DestinationDTO(
+                                destination.getDestinationId(),
+                                destination.getName(),
+                                destination.getDescription(),
+                                destination.getProvince(),
+                                tourDestination.getSequenceOrder(),
+                                tourDestination.getDuration(),
+                                images.stream()
+                                        .map(image -> new  TourResponseDTO.DestinationDTO.ImageDTO(
+                                                image.getImageId(),
+                                                image.getImageUrl()
+                                        ))
+                                        .collect(Collectors.toList())
+                        );
+                    })
+                    .collect(Collectors.toList());
+            List<ImageDTO> images = tour.getImages().stream()
+                    .map(image -> {
+                        ImageDTO imageDTO = new ImageDTO();
+                        imageDTO.setImageId(image.getImageId());
+                        imageDTO.setImageUrl(image.getImageUrl());
+                        return imageDTO;
+                    })
                     .collect(Collectors.toList());
 
             return new TourResponseDTO(
@@ -601,6 +688,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                     tour.getTourType(),
                     tour.isActive(),
                     tour.getUser().getFullName(),
+                    destinations,
                     departures,
                     images
             );
@@ -618,6 +706,14 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         tour.setActive(true);
         tourRepository.save(tour);
         logger.info("Tour with ID: {} has been approved and set to active.", id);
+        emailService.sendTourApprovalNotification(tour.getUser().getEmail(), tour);
+        List<AccountRole> roles = List.of(AccountRole.CUSTOMER,AccountRole.CUSTOMERVIP);
+        List<User> customers = userRepository.findByAccount_RoleInAndAccount_IsActiveTrue(roles);
+        for (User customer : customers) {
+            emailService.sendNewTourNotification(customer.getEmail(), tour);
+        }
+//        emailService.sendTourApprovalNotification("chicuong11042002@gmail.com",tour);
+//        emailService.sendNewTourNotification("chicuong11042002@gmail.com",tour);
     }
 
     @Override
