@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto.respone;import lombok.AllArgsConstructor;import lombok.Data;@Data@AllArgsConstructorpublic class LogoutResponse {    private boolean success;    private String message;}

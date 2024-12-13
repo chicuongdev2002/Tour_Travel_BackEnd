@@ -1,0 +1,1 @@
+package vn.edu.iuh.fit.dto.respone;import lombok.*;import vn.edu.iuh.fit.dto.UserInfoDTO;@Data@Builder@NoArgsConstructor@AllArgsConstructorpublic class LoginResponseDTO {    private UserInfoDTO user;    private String accessToken;//    private String refreshToken;}
