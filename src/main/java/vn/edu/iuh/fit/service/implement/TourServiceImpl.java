@@ -276,7 +276,27 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                             .filter(Objects::nonNull)
                             .min(BigDecimal::compareTo)
                             .orElse(BigDecimal.ZERO);
+                    // Tìm discount đang active cho tour
+                    BigDecimal originalPrice = lowestPrice;
+                    Discount activeDiscount = tour.getDiscounts().stream()
+                            .filter(discount -> {
+                                LocalDateTime now = LocalDateTime.now();
+                                return discount.getStartDate().isBefore(now) &&
+                                        discount.getEndDate().isAfter(now) &&
+                                        (discount.getCountUse() == null || discount.getCountUse() > 0);
+                            })
+                            .findFirst()
+                            .orElse(null);
 
+                    // Tính giá sau khi áp dụng discount
+                    if (activeDiscount != null) {
+                        BigDecimal discountPercentage = BigDecimal.valueOf(activeDiscount.getDiscountAmount());
+                        BigDecimal discountAmount = originalPrice.multiply(discountPercentage.divide(BigDecimal.valueOf(100)));
+                        lowestPrice = originalPrice.subtract(discountAmount);
+                        if (lowestPrice.compareTo(BigDecimal.ZERO) < 0) {
+                            lowestPrice = BigDecimal.ZERO;
+                        }
+                    }
                     boolean isFavorite = userId != null && favoriteTourIds.contains(tour.getTourId());
 
                     return TourListDTO.builder()
@@ -285,6 +305,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                             .tourType(tour.getTourType())
                             .tourDescription(tour.getTourDescription())
                             .price(lowestPrice)
+                            .originalPrice(originalPrice)
                             .duration(tour.getDuration())
                             .maxParticipants(tour.getDepartures().stream()
                                     .findFirst()
