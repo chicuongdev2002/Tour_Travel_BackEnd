@@ -5,6 +5,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import vn.edu.iuh.fit.dto.CheckInResponeDTO;
 import vn.edu.iuh.fit.dto.TourGuideDTO;
 import vn.edu.iuh.fit.dto.request.NotifyRequest;
@@ -21,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Controller
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class WebSocketController {
     @Autowired
     private SimpMessagingTemplate simpMessagingTemplate;
