@@ -22,7 +22,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Controller
-@CrossOrigin(origins = "*", allowedHeaders = "*")
+@CrossOrigin(
+        origins = "https://two2-webtour.onrender.com",
+        allowedHeaders = "*",
+        allowCredentials = "true"
+)
 public class WebSocketController {
     @Autowired
     private SimpMessagingTemplate simpMessagingTemplate;
