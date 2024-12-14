@@ -18,7 +18,7 @@ public class MomoPaymentConfig {
     private final String orderInfo = "Thanh toán với MoMo";
     private final String partnerCode = "MOMO";
     private final String redirectUrl = "http://localhost:5173/payment";
-    private final String ipnUrl = "https://a273-1-54-182-244.ngrok-free.app/api/payment/momo/callback";
+    private final String ipnUrl = "https://7322-115-73-213-185.ngrok-free.app/api/payment/momo/callback";
     private final String requestType = "payWithMethod";
     private String extraData = "";
     private final String orderGroupId = "";
