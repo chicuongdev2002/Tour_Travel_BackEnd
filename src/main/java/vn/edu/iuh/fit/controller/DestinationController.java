@@ -21,6 +21,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("api/destinations")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class DestinationController {
     @Autowired
     private DestinationService destinationService;
