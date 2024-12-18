@@ -17,8 +17,8 @@ public class MomoPaymentConfig {
     private final String secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
     private final String orderInfo = "Thanh toán với MoMo";
     private final String partnerCode = "MOMO";
-    private final String redirectUrl = "http://localhost:5173/payment";
-    private final String ipnUrl = "https://a273-1-54-182-244.ngrok-free.app/api/payment/momo/callback";
+    private final String redirectUrl = "https://two2-webtour.onrender.com/payment";
+    private final String ipnUrl = "https://tourtravelbackend-production.up.railway.app/api/payment/momo/callback";
     private final String requestType = "payWithMethod";
     private String extraData = "";
     private final String orderGroupId = "";

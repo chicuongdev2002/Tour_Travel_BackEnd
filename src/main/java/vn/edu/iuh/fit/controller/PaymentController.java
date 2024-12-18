@@ -31,7 +31,11 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/payment")
-@CrossOrigin("*")
+//@CrossOrigin(
+//        origins = "https://two2-webtour.onrender.com",
+//        allowedHeaders = "*",
+//        allowCredentials = "true"
+//)
 public class PaymentController {
 
     @Autowired

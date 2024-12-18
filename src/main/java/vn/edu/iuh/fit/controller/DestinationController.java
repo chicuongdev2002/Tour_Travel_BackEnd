@@ -21,6 +21,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("api/destinations")
+//@CrossOrigin(
+//        origins = "https://two2-webtour.onrender.com",
+//        allowedHeaders = "*",
+//        allowCredentials = "true"
+//)
 public class DestinationController {
     @Autowired
     private DestinationService destinationService;
