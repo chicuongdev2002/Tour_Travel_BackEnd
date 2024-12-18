@@ -108,7 +108,7 @@ public class BookingController {
                 Discount d = discountRepository.findFirstByDiscountCode(discountId);
                 if(d != null) {
                     if(d.getCountUse() == 0)
-                        throw new Exception("Mã giảm giá đ hết lượt sử dụng!");
+                        throw new Exception("Mã giảm giá đã hết lượt sử dụng!");
                     discount = d.getDiscountAmount();
                     d.setCountUse(d.getCountUse()-1);
                     discountRepository.save(d);
@@ -215,7 +215,7 @@ public class BookingController {
         if(booking.isActive()){
             Notification notification = Notification.builder()
                     .sender(booking.getUser())
-                    .receiver(User.builder().userId(21).build())
+                    .receiver(User.builder().userId(2).build())
                     .createDate(LocalDateTime.now())
                     .messages("$$##Cancel_Booking##$$"+bookingId)
                     .build();
