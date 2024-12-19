@@ -27,6 +27,7 @@ import vn.edu.iuh.fit.service.UserService;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 @RestController
@@ -112,7 +113,7 @@ public class PaymentController {
                 .build();
         Payment payment = Payment.builder()
                 .amount(Long.parseLong(requestBody.get("amount") + ""))
-                .paymentDate(LocalDateTime.now())
+                .paymentDate(LocalDateTime.now(ZoneId.of("Asia/Bangkok")))
                 .paymentMethod(PaymentMethod.BANKING)
                 .booking(Booking.builder().bookingId(requestBody.get("orderId").toString()).build())
                 .build();

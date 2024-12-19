@@ -19,6 +19,7 @@ import vn.edu.iuh.fit.repositories.TourGuideAssignmentRepository;
 import vn.edu.iuh.fit.service.BookingService;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Controller
@@ -57,7 +58,7 @@ public class WebSocketController {
                     );
                 } else {
                     booking.setCheckinStatus(CheckInStatus.CHECKED_IN);
-                    booking.setCheckinTime(LocalDateTime.now());
+                    booking.setCheckinTime(LocalDateTime.now(ZoneId.of("Asia/Bangkok")));
                     bookingRepository.save(booking);
 
                     CheckInResponeDTO.UserDTO userDTO = new CheckInResponeDTO.UserDTO(

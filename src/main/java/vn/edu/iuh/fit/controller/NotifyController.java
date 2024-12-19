@@ -12,6 +12,7 @@ import vn.edu.iuh.fit.service.NotificationService;
 import vn.edu.iuh.fit.service.UserService;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -82,7 +83,7 @@ public class NotifyController {
         try{
             User sender = userService.getById(notification.getSender().getUserId());
             User receiver = userService.getById(notification.getReceiver().getUserId());
-            notification.setCreateDate(LocalDateTime.now());
+            notification.setCreateDate(LocalDateTime.now(ZoneId.of("Asia/Bangkok")));
             notification.setSender(sender);
             notification.setReceiver(receiver);
             notify = notificationService.create(notification);

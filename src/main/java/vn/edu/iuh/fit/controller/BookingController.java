@@ -29,6 +29,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Base64;
 
@@ -120,12 +121,12 @@ public class BookingController {
                     .bookingId(bookingID)
                     .user(user)
                     .departure(departure)
-                    .bookingDate(LocalDateTime.now())
+                    .bookingDate(LocalDateTime.now(ZoneId.of("Asia/Bangkok")))
                     .participants(participants+"_"+discount)
                     .isActive(true)
                     .address(address)
                     .checkinStatus(CheckInStatus.NOT_CHECKED_IN)
-                    .checkinTime(LocalDateTime.now())
+                    .checkinTime(LocalDateTime.now(ZoneId.of("Asia/Bangkok")))
                     .build();
             bookingDTO = bookingService.convertDTO(bookingService.create(booking));
             if(paymentMethod != null){
@@ -216,7 +217,7 @@ public class BookingController {
             Notification notification = Notification.builder()
                     .sender(booking.getUser())
                     .receiver(User.builder().userId(2).build())
-                    .createDate(LocalDateTime.now())
+                    .createDate(LocalDateTime.now(ZoneId.of("Asia/Bangkok")))
                     .messages("$$##Cancel_Booking##$$"+bookingId)
                     .build();
             notificationService.create(notification);
