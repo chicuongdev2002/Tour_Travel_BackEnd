@@ -18,7 +18,7 @@ public class MomoPaymentConfig {
     private final String orderInfo = "Thanh toán với MoMo";
     private final String partnerCode = "MOMO";
     private final String redirectUrl = "https://two2-webtour.onrender.com/payment";
-    private final String ipnUrl = "https://tourtravelbackend-production.up.railway.app/api/payment/momo/callback";
+    private final String ipnUrl = "https://tourtravelbackend-production-d581.up.railway.app/api/payment/momo/callback";
     private final String requestType = "payWithMethod";
     private String extraData = "";
     private final String orderGroupId = "";
