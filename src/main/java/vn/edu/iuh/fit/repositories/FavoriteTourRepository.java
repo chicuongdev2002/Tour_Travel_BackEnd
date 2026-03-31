@@ -1,1 +1,16 @@
-package vn.edu.iuh.fit.repositories;import org.springframework.data.jpa.repository.JpaRepository;import org.springframework.stereotype.Repository;import vn.edu.iuh.fit.entity.FavoriteTour;import vn.edu.iuh.fit.entity.Tour;import vn.edu.iuh.fit.entity.User;import java.util.List;@Repositorypublic interface FavoriteTourRepository extends JpaRepository<FavoriteTour, Long> {    List<FavoriteTour> findByUser(User user);    FavoriteTour findByUserAndTour(User user, Tour tour);}
+package vn.edu.iuh.fit.repositories;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import vn.edu.iuh.fit.entity.FavoriteTour;
+import vn.edu.iuh.fit.entity.Tour;
+import vn.edu.iuh.fit.entity.User;
+
+import java.util.List;
+
+@Repository
+public interface FavoriteTourRepository extends JpaRepository<FavoriteTour, Long> {
+    List<FavoriteTour> findByUser(User user);
+    List<FavoriteTour> findByUserOrderByAddedDateDesc(User user);
+    FavoriteTour findByUserAndTour(User user, Tour tour);
+}

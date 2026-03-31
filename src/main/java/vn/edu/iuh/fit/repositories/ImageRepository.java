@@ -7,13 +7,13 @@ import vn.edu.iuh.fit.entity.Tour;
 
 import java.util.List;
 
-import java.util.List;
-
 public interface ImageRepository extends JpaRepository<Image, Long> {
 
     @Query("SELECT i FROM Image i WHERE i.destination.destinationId = :destinationId")
     List<Image> findByDestinationId(@Param("destinationId") Long destinationId);
     List<Image> findAllByTour(Tour tour);
+    List<Image> findByDestination_DestinationIdIn(List<Long> destinationIds);
+    List<Image> findByTour_TourIdIn(List<Long> tourIds);
 }
 
 

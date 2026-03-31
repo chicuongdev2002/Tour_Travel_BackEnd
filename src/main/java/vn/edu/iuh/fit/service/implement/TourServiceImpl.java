@@ -202,14 +202,14 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                                           LocalDateTime startDate, LocalDateTime endDate,
                                           BigDecimal minPrice, BigDecimal maxPrice,
                                           Long userId) {
-        List<Tour> allTours = tourRepository.findAll();
+        List<Tour> allTours = tourRepository.findActiveToursForCardListing(TourType.DELETE);
         LocalDateTime threeDaysFromNow = LocalDateTime.now().plusDays(3);
 
         final TourType finalTourType = tourTypeStr != null ? TourType.valueOf(tourTypeStr.toUpperCase()) : null;
         final ParticipantType finalParticipantType = participantTypeStr != null ? ParticipantType.valueOf(participantTypeStr.toUpperCase()) : null;
         final String finalKeyword = keyword;
+        Map<Long, List<TourPricing>> pricingByDepartureId = loadLatestPricingMap(allTours);
 
-        // Lọc danh sách tour
         List<Tour> filteredTours = allTours.stream()
                 .filter(tour -> tour.isActive() &&
                         tour.getTourType() != TourType.DELETE &&
@@ -223,36 +223,17 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 .filter(tour -> (finalKeyword == null || tour.getTourName().toLowerCase().contains(finalKeyword.toLowerCase())) &&
                         (startLocation == null || tour.getStartLocation().equalsIgnoreCase(startLocation)) &&
                         (finalTourType == null || tour.getTourType() == finalTourType) &&
-                        (finalParticipantType == null || matchesParticipantType(tour, finalParticipantType)) &&
+                        (finalParticipantType == null || matchesParticipantType(tour, finalParticipantType, pricingByDepartureId)) &&
                         (startDate == null || tour.getDepartures().stream()
                                 .anyMatch(departure -> departure.getStartDate() != null && departure.getStartDate().isAfter(startDate))) &&  // Kiểm tra không null
                         (endDate == null || tour.getDepartures().stream()
                                 .anyMatch(departure -> departure.getStartDate() != null && departure.getStartDate().isBefore(endDate))) &&  // Kiểm tra không null
-                        (minPrice == null || tour.getDepartures().stream()
-                                .flatMap(departure -> departure.getTourPricing().stream())
-                                .map(TourPricing::getPrice)
-                                .filter(Objects::nonNull)
-                                .anyMatch(price -> price.compareTo(minPrice) >= 0)) &&
-                        (maxPrice == null || tour.getDepartures().stream()
-                                .flatMap(departure -> departure.getTourPricing().stream())
-                                .map(TourPricing::getPrice)
-                                .filter(Objects::nonNull)
-                                .anyMatch(price -> price.compareTo(maxPrice) <= 0))
+                        (minPrice == null || getLowestPriceForTour(tour, pricingByDepartureId).compareTo(minPrice) >= 0) &&
+                        (maxPrice == null || getLowestPriceForTour(tour, pricingByDepartureId).compareTo(maxPrice) <= 0)
                 )
                 .collect(Collectors.toList());
 
-        final Set<Long> favoriteTourIds = new HashSet<>();
-        if (userId != null) {
-            User user = userRepository.findById(userId).orElse(null);
-            if (user != null) {
-                List<FavoriteTour> favoriteTours = favoriteTourRepository.findByUser(user);
-                favoriteTourIds.addAll(favoriteTours.stream()
-                        .map(favoriteTour -> favoriteTour.getTour().getTourId())
-                        .collect(Collectors.toSet()));
-            }
-        }
-
-        // Sắp xếp các tour
+        final Set<Long> favoriteTourIds = loadFavoriteTourIds(userId);
         filteredTours.sort((t1, t2) -> {
             boolean t1IsFavorite = favoriteTourIds.contains(t1.getTourId());
             boolean t2IsFavorite = favoriteTourIds.contains(t2.getTourId());
@@ -270,62 +251,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
         int end = Math.min(start + size, (int) totalFilteredElements);
 
         List<TourListDTO> paginatedTours = filteredTours.subList(start, end).stream()
-                .map(tour -> {
-                    BigDecimal lowestPrice = tour.getDepartures().stream()
-                            .flatMap(departure -> departure.getTourPricing().stream())
-                            .map(TourPricing::getPrice)
-                            .filter(Objects::nonNull)
-                            .min(BigDecimal::compareTo)
-                            .orElse(BigDecimal.ZERO);
-                    // Tìm discount đang active cho tour
-                    BigDecimal originalPrice = lowestPrice;
-                    Discount activeDiscount = tour.getDiscounts().stream()
-                            .filter(discount -> {
-                                LocalDateTime now = LocalDateTime.now();
-                                return discount.getStartDate().isBefore(now) &&
-                                        discount.getEndDate().isAfter(now) &&
-                                        (discount.getCountUse() == null || discount.getCountUse() > 0);
-                            })
-                            .findFirst()
-                            .orElse(null);
-
-                    // Tính giá sau khi áp dụng discount
-                    if (activeDiscount != null) {
-                        BigDecimal discountPercentage = BigDecimal.valueOf(activeDiscount.getDiscountAmount());
-                        BigDecimal discountAmount = originalPrice.multiply(discountPercentage.divide(BigDecimal.valueOf(100)));
-                        lowestPrice = originalPrice.subtract(discountAmount);
-                        if (lowestPrice.compareTo(BigDecimal.ZERO) < 0) {
-                            lowestPrice = BigDecimal.ZERO;
-                        }
-                    }
-                    boolean isFavorite = userId != null && favoriteTourIds.contains(tour.getTourId());
-
-                    return TourListDTO.builder()
-                            .tourId(tour.getTourId())
-                            .tourName(tour.getTourName())
-                            .tourType(tour.getTourType())
-                            .tourDescription(tour.getTourDescription())
-                            .price(lowestPrice)
-                            .originalPrice(originalPrice)
-                            .duration(tour.getDuration())
-                            .maxParticipants(tour.getDepartures().stream()
-                                    .findFirst()
-                                    .map(Departure::getMaxParticipants)
-                                    .orElse(null))
-                            .startLocation(tour.getStartLocation())
-                            .startDate(tour.getDepartures().stream()
-                                    .filter(departure -> departure.getStartDate() != null && departure.getStartDate().isAfter(LocalDateTime.now().plusDays(3)))
-                                    .findAny()
-                                    .map(Departure::getStartDate)
-                                    .orElse(null))
-                            .availableSeats(tour.getDepartures().stream()
-                                    .map(Departure::getAvailableSeats)
-                                    .reduce(0, Integer::sum))
-                            .imageUrl(tour.getImages().isEmpty() ? null :
-                                    tour.getImages().iterator().next().getImageUrl())
-                            .isFavorite(isFavorite)
-                            .build();
-                })
+                .map(tour -> toTourListDTO(tour, pricingByDepartureId, favoriteTourIds.contains(tour.getTourId()), threeDaysFromNow))
                 .collect(Collectors.toList());
 
         return new PageImpl<>(paginatedTours, PageRequest.of(page, size), totalFilteredElements);
@@ -339,6 +265,269 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 .flatMap(departure -> departure.getTourPricing().stream())
                 .anyMatch(pricing -> pricing.getParticipantType() == participantType);
     }
+
+    private boolean matchesParticipantType(Tour tour, ParticipantType participantType, Map<Long, List<TourPricing>> pricingByDepartureId) {
+        if (participantType == null) {
+            return true;
+        }
+        return tour.getDepartures().stream()
+                .flatMap(departure -> pricingByDepartureId.getOrDefault(departure.getDepartureId(), List.of()).stream())
+                .anyMatch(pricing -> pricing.getParticipantType() == participantType);
+    }
+
+    private Set<Long> loadFavoriteTourIds(Long userId) {
+        if (userId == null) {
+            return Collections.emptySet();
+        }
+        return userRepository.findById(userId)
+                .map(favoriteTourRepository::findByUser)
+                .orElse(List.of())
+                .stream()
+                .map(favoriteTour -> favoriteTour.getTour().getTourId())
+                .collect(Collectors.toSet());
+    }
+
+    private Map<Long, List<TourPricing>> loadLatestPricingMap(Collection<Tour> tours) {
+        List<Departure> departures = tours.stream()
+                .filter(Objects::nonNull)
+                .flatMap(tour -> tour.getDepartures().stream())
+                .toList();
+        if (departures.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<Long, LocalDateTime> departureStartDates = departures.stream()
+                .collect(Collectors.toMap(Departure::getDepartureId, Departure::getStartDate, (left, right) -> left));
+
+        List<Long> departureIds = departures.stream()
+                .map(Departure::getDepartureId)
+                .toList();
+
+        List<TourPricing> sortedPricings = tourPricingRepository.findTourPricingByDepartureIds(departureIds).stream()
+                .sorted(Comparator.comparing(TourPricing::getModifiedDate, Comparator.nullsLast(LocalDateTime::compareTo)).reversed())
+                .toList();
+
+        Map<Long, EnumMap<ParticipantType, TourPricing>> latestByDeparture = new HashMap<>();
+        for (TourPricing pricing : sortedPricings) {
+            Long departureId = pricing.getDeparture().getDepartureId();
+            LocalDateTime startDate = departureStartDates.get(departureId);
+            if (startDate != null && pricing.getModifiedDate() != null && pricing.getModifiedDate().isAfter(startDate)) {
+                continue;
+            }
+            latestByDeparture
+                    .computeIfAbsent(departureId, ignored -> new EnumMap<>(ParticipantType.class))
+                    .putIfAbsent(pricing.getParticipantType(), pricing);
+        }
+
+        Map<Long, List<TourPricing>> pricingByDepartureId = new HashMap<>();
+        for (Departure departure : departures) {
+            EnumMap<ParticipantType, TourPricing> departurePricings = latestByDeparture.getOrDefault(
+                    departure.getDepartureId(),
+                    new EnumMap<>(ParticipantType.class)
+            );
+            List<TourPricing> latestPricings = Arrays.stream(ParticipantType.values())
+                    .map(participantType -> departurePricings.getOrDefault(
+                            participantType,
+                            TourPricing.builder()
+                                    .departure(departure)
+                                    .participantType(participantType)
+                                    .price(BigDecimal.ZERO)
+                                    .modifiedDate(departure.getStartDate() != null ? departure.getStartDate().minusSeconds(1) : null)
+                                    .build()
+                    ))
+                    .toList();
+            pricingByDepartureId.put(departure.getDepartureId(), latestPricings);
+        }
+        return pricingByDepartureId;
+    }
+
+    private BigDecimal getLowestPriceForTour(Tour tour, Map<Long, List<TourPricing>> pricingByDepartureId) {
+        return tour.getDepartures().stream()
+                .flatMap(departure -> pricingByDepartureId.getOrDefault(departure.getDepartureId(), List.of()).stream())
+                .map(TourPricing::getPrice)
+                .filter(Objects::nonNull)
+                .min(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+    }
+
+    private Discount findActiveDiscount(Tour tour, LocalDateTime now) {
+        return tour.getDiscounts().stream()
+                .filter(discount -> discount.getStartDate() != null && discount.getEndDate() != null)
+                .filter(discount -> discount.getStartDate().isBefore(now) &&
+                        discount.getEndDate().isAfter(now) &&
+                        (discount.getCountUse() == null || discount.getCountUse() > 0))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private TourListDTO toTourListDTO(Tour tour, Map<Long, List<TourPricing>> pricingByDepartureId, boolean isFavorite, LocalDateTime minStartDate) {
+        BigDecimal originalPrice = getLowestPriceForTour(tour, pricingByDepartureId);
+        BigDecimal displayPrice = originalPrice;
+        Discount activeDiscount = findActiveDiscount(tour, LocalDateTime.now());
+        if (activeDiscount != null) {
+            BigDecimal discountPercentage = BigDecimal.valueOf(activeDiscount.getDiscountAmount());
+            BigDecimal discountAmount = originalPrice.multiply(discountPercentage.divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
+            displayPrice = originalPrice.subtract(discountAmount);
+            if (displayPrice.compareTo(BigDecimal.ZERO) < 0) {
+                displayPrice = BigDecimal.ZERO;
+            }
+        }
+
+        return TourListDTO.builder()
+                .tourId(tour.getTourId())
+                .tourName(tour.getTourName())
+                .tourType(tour.getTourType())
+                .tourDescription(tour.getTourDescription())
+                .price(displayPrice)
+                .originalPrice(originalPrice)
+                .duration(tour.getDuration())
+                .maxParticipants(tour.getDepartures().stream()
+                        .findFirst()
+                        .map(Departure::getMaxParticipants)
+                        .orElse(null))
+                .startLocation(tour.getStartLocation())
+                .startDate(tour.getDepartures().stream()
+                        .filter(departure -> departure.getStartDate() != null && departure.getStartDate().isAfter(minStartDate))
+                        .map(Departure::getStartDate)
+                        .min(LocalDateTime::compareTo)
+                        .orElse(null))
+                .availableSeats(tour.getDepartures().stream()
+                        .map(Departure::getAvailableSeats)
+                        .filter(Objects::nonNull)
+                        .reduce(0, Integer::sum))
+                .imageUrl(tour.getImages().isEmpty() ? null : tour.getImages().iterator().next().getImageUrl())
+                .isFavorite(isFavorite)
+                .build();
+    }
+
+    private List<TourPricingDTO> toTourPricingDTOs(Departure departure, Map<Long, List<TourPricing>> pricingByDepartureId) {
+        return pricingByDepartureId.getOrDefault(departure.getDepartureId(), List.of()).stream()
+                .map(pricing -> {
+                    TourPricingDTO dto = new TourPricingDTO();
+                    dto.setPrice(pricing.getPrice());
+                    dto.setParticipantType(pricing.getParticipantType());
+                    dto.setModifiedDate(pricing.getModifiedDate());
+                    return dto;
+                })
+                .toList();
+    }
+
+    private Map<Long, List<TourGuideAssignment>> loadAssignmentsByDepartureId(Collection<Departure> departures) {
+        List<Long> departureIds = departures.stream()
+                .map(Departure::getDepartureId)
+                .toList();
+        if (departureIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return tourGuideAssignmentRepository.findByDeparture_DepartureIdIn(departureIds).stream()
+                .collect(Collectors.groupingBy(assignment -> assignment.getDeparture().getDepartureId()));
+    }
+
+    private Page<TourResponseDTO> mapToursPageToResponse(Page<Tour> toursPage) {
+        if (toursPage.isEmpty()) {
+            return Page.empty(toursPage.getPageable());
+        }
+
+        List<Long> orderedTourIds = toursPage.getContent().stream()
+                .map(Tour::getTourId)
+                .toList();
+        List<Tour> hydratedTours = tourRepository.findAllWithListingRelationsByTourIdIn(orderedTourIds);
+        Map<Long, Tour> hydratedTourById = hydratedTours.stream()
+                .collect(Collectors.toMap(Tour::getTourId, tour -> tour, (left, right) -> left));
+
+        Map<Long, List<TourPricing>> pricingByDepartureId = loadLatestPricingMap(hydratedTours);
+        Map<Long, List<Image>> destinationImagesById = loadDestinationImagesById(hydratedTours);
+
+        List<TourResponseDTO> responses = orderedTourIds.stream()
+                .map(hydratedTourById::get)
+                .filter(Objects::nonNull)
+                .map(tour -> toTourResponseDTO(tour, pricingByDepartureId, destinationImagesById))
+                .toList();
+
+        return new PageImpl<>(responses, toursPage.getPageable(), toursPage.getTotalElements());
+    }
+
+    private Map<Long, List<Image>> loadDestinationImagesById(Collection<Tour> tours) {
+        List<Long> destinationIds = tours.stream()
+                .flatMap(tour -> tour.getTourDestinations().stream())
+                .map(TourDestination::getDestination)
+                .filter(Objects::nonNull)
+                .map(Destination::getDestinationId)
+                .distinct()
+                .toList();
+        if (destinationIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return imageRepository.findByDestination_DestinationIdIn(destinationIds).stream()
+                .filter(image -> image.getDestination() != null)
+                .collect(Collectors.groupingBy(image -> image.getDestination().getDestinationId()));
+    }
+
+    private TourResponseDTO toTourResponseDTO(Tour tour, Map<Long, List<TourPricing>> pricingByDepartureId, Map<Long, List<Image>> destinationImagesById) {
+        List<TourResponseDTO.DepartureResponseDTO> departures = tour.getDepartures().stream()
+                .map(departure -> new TourResponseDTO.DepartureResponseDTO(
+                        departure.getDepartureId(),
+                        departure.getStartDate(),
+                        departure.getEndDate(),
+                        departure.getAvailableSeats(),
+                        departure.getMaxParticipants(),
+                        departure.isActive(),
+                        pricingByDepartureId.getOrDefault(departure.getDepartureId(), List.of()).stream()
+                                .map(pricing -> new TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO(
+                                        pricing.getPrice(),
+                                        pricing.getParticipantType().name(),
+                                        pricing.getModifiedDate()
+                                ))
+                                .toList()
+                ))
+                .toList();
+
+        List<TourResponseDTO.DestinationDTO> destinations = tour.getTourDestinations().stream()
+                .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
+                .filter(td -> td.getSequenceOrder() > 0)
+                .map(tourDestination -> {
+                    Destination destination = tourDestination.getDestination();
+                    List<Image> images = destinationImagesById.getOrDefault(destination.getDestinationId(), List.of());
+                    return new TourResponseDTO.DestinationDTO(
+                            destination.getDestinationId(),
+                            destination.getName(),
+                            destination.getDescription(),
+                            destination.getProvince(),
+                            tourDestination.getSequenceOrder(),
+                            tourDestination.getDuration(),
+                            images.stream()
+                                    .map(image -> new TourResponseDTO.DestinationDTO.ImageDTO(
+                                            image.getImageId(),
+                                            image.getImageUrl()
+                                    ))
+                                    .toList()
+                    );
+                })
+                .toList();
+
+        List<ImageDTO> images = tour.getImages().stream()
+                .map(image -> {
+                    ImageDTO imageDTO = new ImageDTO();
+                    imageDTO.setImageId(image.getImageId());
+                    imageDTO.setImageUrl(image.getImageUrl());
+                    return imageDTO;
+                })
+                .toList();
+
+        return new TourResponseDTO(
+                tour.getTourId(),
+                tour.getTourName(),
+                tour.getTourDescription(),
+                tour.getDuration(),
+                tour.getStartLocation(),
+                tour.getTourType(),
+                tour.isActive(),
+                tour.getUser().getFullName(),
+                destinations,
+                departures,
+                images
+        );
+    }
     @PostConstruct
     public void initializeModelMapper() {
         modelMapper.addConverter(new Converter<UUID, Long>() {
@@ -351,60 +540,17 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
 
     //    @Cacheable("tour")
     public TourDetailDTO getTourById(long id) {
-        logger.info("Fetching tour with ID: {}", id);
-
-        // Lấy Tour từ repository
-        Tour tour = tourRepository.findById(id)
+        Tour tour = tourRepository.findTourWithAllDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tour not found"));
 
-        // Khởi tạo các quan hệ để tránh lazy loading exception
-        Hibernate.initialize(tour.getDepartures());
-        Hibernate.initialize(tour.getImages()); // Khởi tạo hình ảnh
-        Hibernate.initialize(tour.getReviews()); // Khởi tạo đánh giá
+        Map<Long, List<TourPricing>> pricingByDepartureId = loadLatestPricingMap(List.of(tour));
+        Map<Long, List<TourGuideAssignment>> assignmentsByDepartureId = loadAssignmentsByDepartureId(tour.getDepartures());
 
-        logger.info("Number of Departures: {}", tour.getDepartures().size());
-        logger.info("Number of Images: {}", tour.getImages().size());
-        logger.info("Number of Reviews: {}", tour.getReviews().size());
-
-        // Lấy danh sách TourPricing cho các Departure
-
-        List<TourPricing> tourPricings = new ArrayList<>();
-        for(Departure departure : tour.getDepartures()){
-            for (ParticipantType participantType : ParticipantType.values()){
-                TourPricing tourPricing = tourPricingRepository.findFirstByDepartureAndParticipantTypeAndModifiedDateBeforeOrderByModifiedDateDesc(departure, participantType, departure.getStartDate());
-                if (tourPricing == null){
-                    tourPricing = TourPricing.builder().modifiedDate(departure.getStartDate().plusSeconds(-1)).price(BigDecimal.ZERO).departure(departure).participantType(participantType).build();
-                    tourPricingRepository.save(tourPricing);
-                }
-                tourPricings.add(tourPricing);
-            }
-        }
-
-        // Tạo bản đồ để ánh xạ giá tour theo departureId
-        Map<Long, List<TourPricingDTO>> pricingMap = tourPricings.stream()
-                .map(pricing -> {
-                    TourPricingDTO dto = new TourPricingDTO();
-                    dto.setPrice(pricing.getPrice());
-                    dto.setParticipantType(pricing.getParticipantType());
-                    dto.setModifiedDate(pricing.getModifiedDate());
-                    return new AbstractMap.SimpleEntry<>(pricing.getDeparture().getDepartureId(), dto);
-                })
-                .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
-
-        // Ánh xạ destinations
         List<DestinationDTO> destinationDTOs = tour.getTourDestinations().stream()
                 .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
                 .filter(td -> td.getSequenceOrder() > 0)
                 .map(tourDestination -> {
                     Destination destination = tourDestination.getDestination();
-
-                    List<Image> images = imageRepository.findByDestinationId(destination.getDestinationId());
-
-                    logger.info("Destination {} has {} images",
-                            destination.getDestinationId(),
-                            images.size());
-
-                    // 3. Chuyển đổi và trả về DestinationDTO
                     return new DestinationDTO(
                             destination.getDestinationId(),
                             destination.getName(),
@@ -412,7 +558,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                             destination.getProvince(),
                             tourDestination.getSequenceOrder(),
                             tourDestination.getDuration(),
-                            images.stream()
+                            destination.getImages().stream()
                                     .map(image -> new ImageDTO(
                                             image.getImageId(),
                                             image.getImageUrl()
@@ -433,14 +579,10 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                 departureDTO.setAvailableSeats(departure.getAvailableSeats());
                 departureDTO.setMaxParticipants(departure.getMaxParticipants());
 
-                // Lấy danh sách TourPricing cho departure hiện tại
-                List<TourPricingDTO> tourPricingDTOs = pricingMap.getOrDefault(departure.getDepartureId(), List.of());
-
-                // Gán danh sách tourPricing vào departureDTO
-                departureDTO.setTourPricing(tourPricingDTOs);
-                // Lấy danh sách hướng dẫn viên cho departure hiện tại
-                List<TourGuideAssignment> assignments = tourGuideAssignmentRepository.findByDeparture_DepartureId(departure.getDepartureId());
-                List<TourGuideDTO> tourGuideDTOs = assignments.stream()
+                departureDTO.setTourPricing(toTourPricingDTOs(departure, pricingByDepartureId));
+                List<TourGuideDTO> tourGuideDTOs = assignmentsByDepartureId
+                        .getOrDefault(departure.getDepartureId(), List.of())
+                        .stream()
                         .map(assignment -> {
                             TourGuide guide = assignment.getTourGuide();
                             TourGuideDTO guideDTO = new TourGuideDTO();
@@ -451,12 +593,10 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                         })
                         .collect(Collectors.toList());
                 departureDTO.setTourGuides(tourGuideDTOs);
-                logger.info("Mapped DepartureDTO: {}", departureDTO);
                 departureDTOs.add(departureDTO);
             }
         }
 
-        // Ánh xạ danh sách hình ảnh
         List<ImageDTO> imageDTOs = tour.getImages().stream()
                 .map(image -> {
                     ImageDTO imageDTO = new ImageDTO();
@@ -465,9 +605,7 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                     return imageDTO;
                 })
                 .collect(Collectors.toList());
-        // Ánh xạ danh sách đánh giá
         List<ReviewDTO> reviewDTOs = tour.getReviews().stream()
-//                .filter(review -> review.isActive())
                 .sorted(Comparator.comparing(Review::getReviewDate).reversed())
                 .map(review -> {
                     ReviewDTO reviewDTO = new ReviewDTO();
@@ -481,13 +619,11 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
                     return reviewDTO;
                 })
                 .collect(Collectors.toList());
-        // Gán danh sách departure, destination và images vào DTO
         TourDetailDTO tourDetailDTO = modelMapper.map(tour, TourDetailDTO.class);
         tourDetailDTO.setDepartures(departureDTOs);
         tourDetailDTO.setDestinations(destinationDTOs);
-        tourDetailDTO.setImages(imageDTOs); // Gán danh sách hình ảnh
-        tourDetailDTO.setReviews(reviewDTOs); // Gán danh sách đánh giá
-        logger.info("Final TourDetailDTO: {}", tourDetailDTO);
+        tourDetailDTO.setImages(imageDTOs);
+        tourDetailDTO.setReviews(reviewDTOs);
         return tourDetailDTO;
     }
 
@@ -552,183 +688,16 @@ public class TourServiceImpl extends AbstractCrudService<Tour, Long> implements 
     }
     @Override
     public Page<TourResponseDTO> getListTour(Pageable pageable) {
-        // Tạo PageRequest với sắp xếp theo isActive
         Pageable sortedByActive = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.ASC, "isActive"));
-
-        // Lấy danh sách tour với Pageable đã sắp xếp
         Page<Tour> toursPage = tourRepository.findAll(sortedByActive);
-
-        return toursPage.map(tour -> {
-            List<TourResponseDTO.DepartureResponseDTO> departures = tour.getDepartures().stream().map(departure -> {
-                // Lấy toàn bộ giá cho mỗi departure
-                List<TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO> tourPricingList =
-                        Arrays.stream(ParticipantType.values())
-                                .map(participantType -> {
-                                    TourPricing tourPricing = tourPricingRepository
-                                            .findFirstByDepartureAndParticipantTypeAndModifiedDateBeforeOrderByModifiedDateDesc(
-                                                    departure, participantType, departure.getStartDate()
-                                            );
-
-                                    // Nếu không tìm thấy giá, tạo một pricing với giá 0
-                                    if (tourPricing == null) {
-                                        tourPricing = TourPricing.builder()
-                                                .modifiedDate(departure.getStartDate().plusSeconds(-1))
-                                                .price(BigDecimal.ZERO)
-                                                .departure(departure)
-                                                .participantType(participantType)
-                                                .build();
-                                        tourPricingRepository.save(tourPricing);
-                                    }
-
-                                    return new TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO(
-                                            tourPricing.getPrice(),
-                                            tourPricing.getParticipantType().name(),
-                                            tourPricing.getModifiedDate()
-                                    );
-                                })
-                                .collect(Collectors.toList());
-
-                return new TourResponseDTO.DepartureResponseDTO(
-                        departure.getDepartureId(),
-                        departure.getStartDate(),
-                        departure.getEndDate(),
-                        departure.getAvailableSeats(),
-                        departure.getMaxParticipants(),
-                        departure.isActive(),
-                        tourPricingList
-                );
-            }).collect(Collectors.toList());
-
-            // Phần còn lại của code giữ nguyên như cũ
-            List<TourResponseDTO.DestinationDTO> destinations = tour.getTourDestinations().stream()
-                    .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
-                    .filter(td -> td.getSequenceOrder() > 0)
-                    .map(tourDestination -> {
-                        Destination destination = tourDestination.getDestination();
-                        List<Image> images = imageRepository.findByDestinationId(destination.getDestinationId());
-
-                        logger.info("Destination {} has {} images",
-                                destination.getDestinationId(),
-                                images.size());
-
-                        // Chuyển đổi và trả về DestinationDTO
-                        return new TourResponseDTO.DestinationDTO(
-                                destination.getDestinationId(),
-                                destination.getName(),
-                                destination.getDescription(),
-                                destination.getProvince(),
-                                tourDestination.getSequenceOrder(),
-                                tourDestination.getDuration(),
-                                images.stream()
-                                        .map(image -> new TourResponseDTO.DestinationDTO.ImageDTO(
-                                                image.getImageId(),
-                                                image.getImageUrl()
-                                        ))
-                                        .collect(Collectors.toList())
-                        );
-                    })
-                    .collect(Collectors.toList());
-
-            List<ImageDTO> images = tour.getImages().stream()
-                    .map(image -> {
-                        ImageDTO imageDTO = new ImageDTO();
-                        imageDTO.setImageId(image.getImageId());
-                        imageDTO.setImageUrl(image.getImageUrl());
-                        return imageDTO;
-                    })
-                    .collect(Collectors.toList());
-
-            return new TourResponseDTO(
-                    tour.getTourId(),
-                    tour.getTourName(),
-                    tour.getTourDescription(),
-                    tour.getDuration(),
-                    tour.getStartLocation(),
-                    tour.getTourType(),
-                    tour.isActive(),
-                    tour.getUser().getFullName(),
-                    destinations,
-                    departures,
-                    images
-            );
-        });
+        return mapToursPageToResponse(toursPage);
     }
     @Override
     public Page<TourResponseDTO> getListTourByUserId(Long userId, Pageable pageable) {
         Pageable sortedByStartDate = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "departures.startDate"));
 
         Page<Tour> toursPage = tourRepository.findByUser_UserId(userId, sortedByStartDate);
-
-        return toursPage.map(tour -> {
-            List<TourResponseDTO.DepartureResponseDTO> departures = tour.getDepartures().stream().map(departure -> {
-                List<TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO> pricingList = departure.getTourPricing().stream()
-                        .map(pricing -> new TourResponseDTO.DepartureResponseDTO.TourPricingResponseDTO(
-                                pricing.getPrice(),
-                                pricing.getParticipantType().name(),
-                                pricing.getModifiedDate()
-                        )).collect(Collectors.toList());
-
-                return new TourResponseDTO.DepartureResponseDTO(
-                        departure.getDepartureId(),
-                        departure.getStartDate(),
-                        departure.getEndDate(),
-                        departure.getAvailableSeats(),
-                        departure.getMaxParticipants(),
-                        departure.isActive(),
-                        pricingList
-                );
-            }).collect(Collectors.toList());
-            List<TourResponseDTO.DestinationDTO> destinations= tour.getTourDestinations().stream()
-                    .sorted(Comparator.comparingInt(TourDestination::getSequenceOrder))
-                    .filter(td -> td.getSequenceOrder() > 0)
-                    .map(tourDestination -> {
-                        Destination destination = tourDestination.getDestination();
-                        List<Image> images = imageRepository.findByDestinationId(destination.getDestinationId());
-
-                        logger.info("Destination {} has {} images",
-                                destination.getDestinationId(),
-                                images.size());
-
-                        // 3. Chuyển đổi và trả về DestinationDTO
-                        return new TourResponseDTO.DestinationDTO(
-                                destination.getDestinationId(),
-                                destination.getName(),
-                                destination.getDescription(),
-                                destination.getProvince(),
-                                tourDestination.getSequenceOrder(),
-                                tourDestination.getDuration(),
-                                images.stream()
-                                        .map(image -> new  TourResponseDTO.DestinationDTO.ImageDTO(
-                                                image.getImageId(),
-                                                image.getImageUrl()
-                                        ))
-                                        .collect(Collectors.toList())
-                        );
-                    })
-                    .collect(Collectors.toList());
-            List<ImageDTO> images = tour.getImages().stream()
-                    .map(image -> {
-                        ImageDTO imageDTO = new ImageDTO();
-                        imageDTO.setImageId(image.getImageId());
-                        imageDTO.setImageUrl(image.getImageUrl());
-                        return imageDTO;
-                    })
-                    .collect(Collectors.toList());
-
-            return new TourResponseDTO(
-                    tour.getTourId(),
-                    tour.getTourName(),
-                    tour.getTourDescription(),
-                    tour.getDuration(),
-                    tour.getStartLocation(),
-                    tour.getTourType(),
-                    tour.isActive(),
-                    tour.getUser().getFullName(),
-                    destinations,
-                    departures,
-                    images
-            );
-        });
+        return mapToursPageToResponse(toursPage);
     }
     @Override
     public TourInfoDTO convertToDTO(Tour tour) {

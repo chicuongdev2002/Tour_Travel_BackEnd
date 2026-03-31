@@ -76,6 +76,7 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
     List<Tour> findByTourNameContainingIgnoreCaseOrStartLocationContainingIgnoreCase(String tourName, String startLocation);
 
     @Query("SELECT DISTINCT t FROM Tour t " +
+            "LEFT JOIN FETCH t.user " +
             "LEFT JOIN FETCH t.departures d " +
             "LEFT JOIN FETCH t.images " +
             "LEFT JOIN FETCH t.reviews r " +
@@ -85,6 +86,20 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
             "LEFT JOIN FETCH dest.images " +
             "WHERE t.tourId = :id")
     Optional<Tour> findTourWithAllDetails(@Param("id") Long id);
+    @Query("SELECT DISTINCT t FROM Tour t " +
+            "LEFT JOIN FETCH t.user " +
+            "LEFT JOIN FETCH t.departures d " +
+            "LEFT JOIN FETCH t.images " +
+            "LEFT JOIN FETCH t.tourDestinations td " +
+            "LEFT JOIN FETCH td.destination " +
+            "WHERE t.tourId IN :tourIds")
+    List<Tour> findAllWithListingRelationsByTourIdIn(@Param("tourIds") List<Long> tourIds);
+    @Query("SELECT DISTINCT t FROM Tour t " +
+            "LEFT JOIN FETCH t.departures d " +
+            "LEFT JOIN FETCH t.images " +
+            "LEFT JOIN FETCH t.discounts " +
+            "WHERE t.isActive = true AND t.tourType <> :deletedType")
+    List<Tour> findActiveToursForCardListing(@Param("deletedType") TourType deletedType);
     @Query("SELECT COUNT(tp) FROM TourPricing tp WHERE tp.departure.departureId IN :departureIds")
     long countTourPricingsByDepartureIds(@Param("departureIds") List<Long> departureIds);
     @Query("SELECT t FROM Tour t")

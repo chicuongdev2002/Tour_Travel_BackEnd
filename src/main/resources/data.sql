@@ -1,0 +1,611 @@
+-- Sample data for Tour_Travel_BackEnd
+-- Target database: defaultdb
+-- Safe to run multiple times (it clears only seeded IDs first).
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- Seed ID ranges:
+-- users:         1001-1099
+-- destinations:  2001-2099
+-- tours:         3001-3099
+-- departures:    4001-4199
+-- tour_pricing:  5001-5499
+-- images:        7001-7499
+-- review:        8001-8499
+-- favorite_tours:9001-9499
+DELETE FROM favorite_tours WHERE id BETWEEN 9001 AND 9499;
+DELETE FROM review WHERE review_id BETWEEN 8001 AND 8499;
+DELETE FROM images WHERE image_id BETWEEN 7001 AND 7499;
+DELETE FROM tour_destinations WHERE tour_id BETWEEN 3001 AND 3099;
+DELETE FROM tour_pricing WHERE tour_pricing_id BETWEEN 5001 AND 5499;
+DELETE FROM departures WHERE departure_id BETWEEN 4001 AND 4199;
+DELETE FROM tours WHERE tour_id BETWEEN 3001 AND 3099;
+DELETE FROM destinations WHERE destination_id BETWEEN 2001 AND 2099;
+DELETE FROM users WHERE user_id BETWEEN 1001 AND 1099;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+INSERT INTO users (user_id, email, full_name, phone_number) VALUES
+(1001, 'provider1@tour.local', 'Tour Provider One', '0901000001'),
+(1002, 'customer1@tour.local', 'Customer One', '0901000002'),
+(1003, 'customer2@tour.local', 'Customer Two', '0901000003'),
+(1004, 'provider2@tour.local', 'Tour Provider Two', '0901000004'),
+(1005, 'provider3@tour.local', 'Tour Provider Three', '0901000005'),
+(1011, 'customer3@tour.local', 'Customer Three', '0901000011'),
+(1012, 'customer4@tour.local', 'Customer Four', '0901000012'),
+(1013, 'customer5@tour.local', 'Customer Five', '0901000013'),
+(1014, 'customer6@tour.local', 'Customer Six', '0901000014'),
+(1015, 'customer7@tour.local', 'Customer Seven', '0901000015'),
+(1016, 'customer8@tour.local', 'Customer Eight', '0901000016'),
+(1017, 'customer9@tour.local', 'Customer Nine', '0901000017'),
+(1018, 'customer10@tour.local', 'Customer Ten', '0901000018');
+
+INSERT INTO destinations (destination_id, name, description, province) VALUES
+(2001, 'Da Nang', 'Bien dep, am thuc phong phu va nhieu diem check-in.', 'Da Nang'),
+(2002, 'Hoi An', 'Pho co voi den long va van hoa dac sac.', 'Quang Nam'),
+(2003, 'Ha Noi', 'Thu do ngan nam van hien, am thuc da dang.', 'Ha Noi'),
+(2004, 'Ha Long', 'Vinh Ha Long ky quan thien nhien the gioi.', 'Quang Ninh'),
+(2005, 'Phu Quoc', 'Dao ngoc voi bien xanh va khu nghi duong.', 'Kien Giang'),
+(2006, 'Nha Trang', 'Thanh pho bien voi nhieu dao dep va resort.', 'Khanh Hoa'),
+(2007, 'Da Lat', 'Thanh pho ngan hoa, khi hau mat me quanh nam.', 'Lam Dong'),
+(2008, 'Hue', 'Co do voi di san van hoa va am thuc dac sac.', 'Thua Thien Hue'),
+(2009, 'Sa Pa', 'Thi tran tren nui, canh dep va van hoa ban dia.', 'Lao Cai'),
+(2010, 'Ninh Binh', 'Trang An - Tam Coc, canh quan song nui huu tinh.', 'Ninh Binh'),
+(2011, 'Quy Nhon', 'Bien dep, yen binh, am thuc hai san.', 'Binh Dinh'),
+(2012, 'Phan Thiet', 'Mui Ne - doi cat, bien va sports.', 'Binh Thuan'),
+(2013, 'Can Tho', 'Mien Tay song nuoc, cho noi Cai Rang.', 'Can Tho'),
+(2014, 'Vung Tau', 'Bien gan Sai Gon, nhieu diem check-in.', 'Ba Ria - Vung Tau'),
+(2015, 'Con Dao', 'Dao hoang so, bien dep, lich su dac biet.', 'Ba Ria - Vung Tau');
+
+INSERT INTO tours
+(tour_id, tour_name, tour_description, duration, start_location, is_active, created_date, tour_type, user_id)
+VALUES
+(3001, 'Da Nang - Hoi An 3N2D', 'Tour nghi duong ket hop tham quan pho co Hoi An.', 3, 'Ho Chi Minh', 1, '2026-03-01 08:00:00', 'FAMILY_CENTRAL', 1001),
+(3002, 'Ha Noi - Ha Long 4N3D', 'Kham pha thu do va ky quan Vinh Ha Long.', 4, 'Ho Chi Minh', 1, '2026-03-02 08:30:00', 'GROUP_NORTHERN', 1001),
+(3003, 'Phu Quoc Relax 3N2D', 'Tour nghi duong bien dao cho gia dinh.', 3, 'Can Tho', 1, '2026-03-03 09:00:00', 'FAMILY_RELAXATION', 1001),
+(3004, 'Hue - Da Nang - Hoi An 4N3D', 'Di san co do Hue ket hop bien va pho co.', 4, 'Ha Noi', 1, '2026-03-04 09:15:00', 'GROUP_CENTRAL', 1004),
+(3005, 'Nha Trang Bien Dao 3N2D', 'Nghi duong bien, tham quan dao va am thuc.', 3, 'Ho Chi Minh', 1, '2026-03-05 08:45:00', 'FAMILY_RELAXATION', 1004),
+(3006, 'Da Lat Chill 3N2D', 'Tron nong, tham quan vuon hoa va cafe view.', 3, 'Ho Chi Minh', 1, '2026-03-06 10:00:00', 'GROUP_RELAXATION', 1005),
+(3007, 'Sa Pa Fansipan 4N3D', 'San may Sa Pa, chinh phuc Fansipan.', 4, 'Ha Noi', 1, '2026-03-07 07:30:00', 'FAMILY_ADVENTURE', 1005),
+(3008, 'Ninh Binh Trang An 2N1D', 'Tam Coc - Trang An - Hang Mua.', 2, 'Ha Noi', 1, '2026-03-08 06:30:00', 'GROUP', 1001),
+(3009, 'Quy Nhon Ky Co 3N2D', 'Eo Gio - Ky Co - Hai san tuoi.', 3, 'Da Nang', 1, '2026-03-09 08:00:00', 'FAMILY_SOUTHERN', 1004),
+(3010, 'Mui Ne Phan Thiet 2N1D', 'Doi cat - lang chai - check-in hoang hon.', 2, 'Ho Chi Minh', 1, '2026-03-10 07:00:00', 'GROUP_SOUTHERN', 1004),
+(3011, 'Can Tho - Chau Doc 3N2D', 'Cho noi - rung tram Tra Su - am thuc mien Tay.', 3, 'Ho Chi Minh', 1, '2026-03-11 07:15:00', 'FAMILY', 1001),
+(3012, 'Vung Tau Weekend 2N1D', 'Bien gan, nghi duong cuoi tuan nhe nhang.', 2, 'Ho Chi Minh', 1, '2026-03-12 08:10:00', 'FAMILY_RELAXATION', 1001),
+(3013, 'Con Dao Discovery 3N2D', 'Bien dep, tam linh va lich su.', 3, 'Ho Chi Minh', 1, '2026-03-13 09:20:00', 'GROUP_SPIRITUAL', 1005);
+
+INSERT INTO departures
+(departure_id, tour_id, start_date, end_date, available_seats, max_participants, is_active)
+VALUES
+(4001, 3001, '2026-04-15 06:00:00', '2026-04-17 20:00:00', 18, 20, 1),
+(4002, 3001, '2026-05-10 06:00:00', '2026-05-12 20:00:00', 15, 20, 1),
+(4003, 3002, '2026-04-20 05:30:00', '2026-04-23 21:00:00', 22, 25, 1),
+(4004, 3003, '2026-04-25 07:00:00', '2026-04-27 19:00:00', 10, 15, 1),
+(4011, 3004, '2026-04-18 06:30:00', '2026-04-21 20:30:00', 28, 30, 1),
+(4012, 3004, '2026-05-16 06:30:00', '2026-05-19 20:30:00', 25, 30, 1),
+(4013, 3005, '2026-04-22 07:00:00', '2026-04-24 19:00:00', 20, 24, 1),
+(4014, 3005, '2026-05-20 07:00:00', '2026-05-22 19:00:00', 18, 24, 1),
+(4015, 3006, '2026-04-12 06:00:00', '2026-04-14 20:00:00', 16, 20, 1),
+(4016, 3006, '2026-05-08 06:00:00', '2026-05-10 20:00:00', 14, 20, 1),
+(4017, 3007, '2026-04-28 05:30:00', '2026-05-01 21:00:00', 20, 22, 1),
+(4018, 3008, '2026-04-09 06:00:00', '2026-04-10 18:00:00', 30, 35, 1),
+(4019, 3009, '2026-04-26 07:00:00', '2026-04-28 19:30:00', 18, 22, 1),
+(4020, 3010, '2026-04-16 07:00:00', '2026-04-17 20:00:00', 25, 30, 1),
+(4021, 3011, '2026-04-14 06:00:00', '2026-04-16 20:00:00', 20, 25, 1),
+(4022, 3012, '2026-04-05 08:00:00', '2026-04-06 18:00:00', 35, 40, 1),
+(4023, 3013, '2026-05-02 06:30:00', '2026-05-04 20:00:00', 12, 15, 1);
+
+INSERT INTO tour_pricing
+(tour_pricing_id, departure_id, price, participant_type, modified_date)
+VALUES
+(5001, 4001, 3290000, 'ADULTS', '2026-03-20 10:00:00'),
+(5002, 4001, 2490000, 'CHILDREN', '2026-03-20 10:00:00'),
+(5003, 4002, 3390000, 'ADULTS', '2026-03-22 10:00:00'),
+(5004, 4003, 4590000, 'ADULTS', '2026-03-18 10:00:00'),
+(5005, 4003, 3190000, 'CHILDREN', '2026-03-18 10:00:00'),
+(5006, 4004, 3890000, 'ADULTS', '2026-03-19 10:00:00'),
+(5011, 4004, 2890000, 'CHILDREN', '2026-03-19 10:00:00'),
+(5012, 4004, 3390000, 'ELDERLY', '2026-03-19 10:00:00'),
+
+(5021, 4011, 4990000, 'ADULTS', '2026-03-21 10:00:00'),
+(5022, 4011, 3590000, 'CHILDREN', '2026-03-21 10:00:00'),
+(5023, 4011, 4290000, 'ELDERLY', '2026-03-21 10:00:00'),
+(5024, 4012, 5190000, 'ADULTS', '2026-03-23 10:00:00'),
+(5025, 4012, 3790000, 'CHILDREN', '2026-03-23 10:00:00'),
+
+(5031, 4013, 3690000, 'ADULTS', '2026-03-24 10:00:00'),
+(5032, 4013, 2790000, 'CHILDREN', '2026-03-24 10:00:00'),
+(5033, 4014, 3890000, 'ADULTS', '2026-03-26 10:00:00'),
+(5034, 4014, 2990000, 'CHILDREN', '2026-03-26 10:00:00'),
+
+(5041, 4015, 2590000, 'ADULTS', '2026-03-20 10:00:00'),
+(5042, 4015, 1990000, 'CHILDREN', '2026-03-20 10:00:00'),
+(5043, 4016, 2690000, 'ADULTS', '2026-03-22 10:00:00'),
+(5044, 4016, 2090000, 'CHILDREN', '2026-03-22 10:00:00'),
+
+(5051, 4017, 5790000, 'ADULTS', '2026-03-20 10:00:00'),
+(5052, 4017, 4290000, 'CHILDREN', '2026-03-20 10:00:00'),
+(5053, 4017, 5090000, 'ELDERLY', '2026-03-20 10:00:00'),
+
+(5061, 4018, 1290000, 'ADULTS', '2026-03-20 10:00:00'),
+(5062, 4018, 990000, 'CHILDREN', '2026-03-20 10:00:00'),
+
+(5071, 4019, 3490000, 'ADULTS', '2026-03-20 10:00:00'),
+(5072, 4019, 2590000, 'CHILDREN', '2026-03-20 10:00:00'),
+
+(5081, 4020, 1490000, 'ADULTS', '2026-03-20 10:00:00'),
+(5082, 4020, 1090000, 'CHILDREN', '2026-03-20 10:00:00'),
+
+(5091, 4021, 2290000, 'ADULTS', '2026-03-20 10:00:00'),
+(5092, 4021, 1690000, 'CHILDREN', '2026-03-20 10:00:00'),
+
+(5101, 4022, 990000, 'ADULTS', '2026-03-20 10:00:00'),
+(5102, 4022, 690000, 'CHILDREN', '2026-03-20 10:00:00'),
+
+(5111, 4023, 6490000, 'ADULTS', '2026-03-20 10:00:00'),
+(5112, 4023, 4790000, 'CHILDREN', '2026-03-20 10:00:00'),
+(5113, 4023, 5890000, 'ELDERLY', '2026-03-20 10:00:00');
+
+INSERT INTO tour_destinations (tour_id, destination_id, duration, sequence_order) VALUES
+(3001, 2001, 2, 1),
+(3001, 2002, 1, 2),
+(3002, 2003, 2, 1),
+(3002, 2004, 2, 2),
+(3003, 2005, 3, 1),
+(3004, 2008, 2, 1),
+(3004, 2001, 1, 2),
+(3004, 2002, 1, 3),
+(3005, 2006, 3, 1),
+(3006, 2007, 3, 1),
+(3007, 2009, 4, 1),
+(3008, 2010, 2, 1),
+(3009, 2011, 3, 1),
+(3010, 2012, 2, 1),
+(3011, 2013, 3, 1),
+(3012, 2014, 2, 1),
+(3013, 2015, 3, 1);
+
+-- More tours for TourDetailDTO
+INSERT INTO tours
+(tour_id, tour_name, tour_description, duration, start_location, is_active, created_date, tour_type, user_id)
+VALUES
+(3014, 'Da Nang - Hoi An - Hue 2N1D', 'Tour central hien dai, tram cam hung tu pho co va co do Hue.', 2, 'Da Nang', 1, '2026-03-14 09:00:00', 'FAMILY_CENTRAL', 1001),
+(3015, 'Nha Trang - Da Nang - Phan Thiet 3N2D', 'Bien xanh ket hop shopping va am thuc duong pho.', 3, 'Ho Chi Minh', 1, '2026-03-15 09:00:00', 'FAMILY_RELAXATION', 1004),
+(3016, 'Ha Noi - Ninh Binh - Sa Pa 4N3D', 'Tu thu do den thien nhien nui rung, ngam canh dep Sa Pa.', 4, 'Ha Noi', 1, '2026-03-16 09:00:00', 'GROUP_NORTHERN', 1005),
+(3017, 'Phu Quoc - Ha Long - Hoi An 3N2D', 'Bien dao va vinh troi, ket hop tham quan pho co Hoi An.', 3, 'Ho Chi Minh', 1, '2026-03-17 09:00:00', 'FAMILY', 1001),
+(3018, 'Quy Nhon - Da Nang - Phan Thiet 3N2D', 'Bien dep, hai san tuoi, check-in cac diem hot.', 3, 'Da Nang', 1, '2026-03-18 09:00:00', 'FAMILY_SOUTHERN', 1004),
+(3019, 'Ha Long - Hue - Hoi An 3N2D', 'Ky quan the gioi va co do di san lich su.', 3, 'Ho Chi Minh', 1, '2026-03-19 09:00:00', 'GROUP_RELAXATION', 1005),
+(3020, 'Sa Pa - Ha Noi - Ninh Binh 4N3D', 'Le hoi nui rung, hop tac thu vi cho nhom.', 4, 'Ha Noi', 1, '2026-03-20 09:00:00', 'FAMILY_ADVENTURE', 1001),
+(3021, 'Hue - Da Nang - Nha Trang 4N3D', 'Lien tuong co do den bien xanh, lich trinh vua du.', 4, 'Ha Noi', 1, '2026-03-21 09:00:00', 'GROUP_CENTRAL', 1004),
+(3022, 'Hoi An - Hue - Da Nang Culture 3N2D', 'Cam nhan van hoa va am thuc theo tung buoi.', 3, 'Da Nang', 1, '2026-03-22 09:00:00', 'FAMILY_CULTURAL_AND_HISTORICAL', 1005),
+(3023, 'Vung Tau - Phan Thiet - Can Tho 3N2D', 'Di bien, doi cat va di cho noi mien Tay.', 3, 'Ho Chi Minh', 1, '2026-03-23 09:00:00', 'GROUP_ADVENTURE', 1001),
+(3024, 'Con Dao - Phu Quoc - Vung Tau 3N2D', 'Bien dep, tam hon lang du, phuc vu chu dao.', 3, 'Ho Chi Minh', 1, '2026-03-24 09:00:00', 'FAMILY_SPIRITUAL', 1004),
+(3025, 'Da Lat - Can Tho - Vung Tau 3N2D', 'Chin vet cafe va hanh trinh song nuoc.', 3, 'Ho Chi Minh', 1, '2026-03-25 09:00:00', 'GROUP_SPIRITUAL', 1005),
+(3026, 'Ninh Binh - Ha Noi - Ha Long 4N3D', 'Trang An - suong mu, Ha Long ky quan.', 4, 'Ha Noi', 1, '2026-03-26 09:00:00', 'GROUP', 1001),
+(3027, 'Sa Pa Fansipan - Ninh Binh - Ha Long 4N3D', 'San may va canh hoang so, vua du suc.', 4, 'Ha Noi', 1, '2026-03-27 09:00:00', 'FAMILY_NORTHERN', 1004),
+(3028, 'Can Tho - Vung Tau - Phan Thiet 3N2D', 'Cho noi cai Rang, bien gan, check-in hop ly.', 3, 'Ho Chi Minh', 1, '2026-03-28 09:00:00', 'GROUP_SOUTHERN', 1005),
+(3029, 'Nha Trang - Da Lat - Da Nang 3N2D', 'Tu bien vao rung, ngam hoa va ngap tran am thuc.', 3, 'Ho Chi Minh', 1, '2026-03-29 09:00:00', 'FAMILY_RELAXATION', 1001),
+(3030, 'Hue - Hoi An - Ha Long 4N3D', 'Lien tuong trung bo, di san va thien nhien.', 4, 'Ha Noi', 1, '2026-03-30 09:00:00', 'GROUP_CENTRAL', 1004),
+(3031, 'Da Nang - Hoi An 2N1D', 'Pho co Hoi An va bien Da Nang trong thoi gian ngan.', 2, 'Da Nang', 1, '2026-03-31 09:00:00', 'FAMILY_CENTRAL', 1005),
+(3032, 'Vung Tau - Quy Nhon - Phan Thiet 3N2D', 'Bien gan sai gon, tripo trung tam va bien dep.', 3, 'Ho Chi Minh', 1, '2026-04-01 09:00:00', 'GROUP_RELAXATION', 1001),
+(3033, 'Phan Thiet - Can Tho - Vung Tau 3N2D', 'Mui Ne doi cat, song nuoc mien Tay va bien cuoi hanh trinh.', 3, 'Ho Chi Minh', 1, '2026-04-02 09:00:00', 'FAMILY_SOUTHERN', 1004);
+
+INSERT INTO departures
+(departure_id, tour_id, start_date, end_date, available_seats, max_participants, is_active)
+VALUES
+(4024, 3014, '2026-04-20 06:00:00', '2026-04-22 20:00:00', 15, 25, 1),
+(4025, 3015, '2026-04-22 06:00:00', '2026-04-24 20:00:00', 16, 26, 1),
+(4026, 3016, '2026-04-24 06:00:00', '2026-04-26 20:00:00', 17, 27, 1),
+(4027, 3017, '2026-04-26 06:00:00', '2026-04-28 20:00:00', 18, 28, 1),
+(4028, 3018, '2026-04-28 06:00:00', '2026-04-30 20:00:00', 19, 29, 1),
+(4029, 3019, '2026-04-30 06:00:00', '2026-05-02 20:00:00', 20, 30, 1),
+(4030, 3020, '2026-05-02 06:00:00', '2026-05-04 20:00:00', 21, 31, 1),
+(4031, 3021, '2026-05-04 06:00:00', '2026-05-06 20:00:00', 22, 32, 1),
+(4032, 3022, '2026-05-06 06:00:00', '2026-05-08 20:00:00', 23, 33, 1),
+(4033, 3023, '2026-05-08 06:00:00', '2026-05-10 20:00:00', 24, 34, 1),
+(4034, 3024, '2026-05-10 06:00:00', '2026-05-12 20:00:00', 15, 25, 1),
+(4035, 3025, '2026-05-12 06:00:00', '2026-05-14 20:00:00', 16, 26, 1),
+(4036, 3026, '2026-05-14 06:00:00', '2026-05-16 20:00:00', 17, 27, 1),
+(4037, 3027, '2026-05-16 06:00:00', '2026-05-18 20:00:00', 18, 28, 1),
+(4038, 3028, '2026-05-18 06:00:00', '2026-05-20 20:00:00', 19, 29, 1),
+(4039, 3029, '2026-05-20 06:00:00', '2026-05-22 20:00:00', 20, 30, 1),
+(4040, 3030, '2026-05-22 06:00:00', '2026-05-24 20:00:00', 21, 31, 1),
+(4041, 3031, '2026-05-24 06:00:00', '2026-05-26 20:00:00', 22, 32, 1),
+(4042, 3032, '2026-05-26 06:00:00', '2026-05-28 20:00:00', 23, 33, 1),
+(4043, 3033, '2026-05-28 06:00:00', '2026-05-30 20:00:00', 24, 34, 1),
+
+(4044, 3014, '2026-05-05 07:00:00', '2026-05-07 21:00:00', 10, 22, 1),
+(4045, 3015, '2026-05-07 07:00:00', '2026-05-09 21:00:00', 11, 23, 1),
+(4046, 3016, '2026-05-09 07:00:00', '2026-05-11 21:00:00', 12, 24, 1),
+(4047, 3017, '2026-05-11 07:00:00', '2026-05-13 21:00:00', 13, 25, 1),
+(4048, 3018, '2026-05-13 07:00:00', '2026-05-15 21:00:00', 14, 26, 1),
+(4049, 3019, '2026-05-15 07:00:00', '2026-05-17 21:00:00', 15, 27, 1),
+(4050, 3020, '2026-05-17 07:00:00', '2026-05-19 21:00:00', 16, 28, 1),
+(4051, 3021, '2026-05-19 07:00:00', '2026-05-21 21:00:00', 17, 29, 1),
+(4052, 3022, '2026-05-21 07:00:00', '2026-05-23 21:00:00', 18, 30, 1),
+(4053, 3023, '2026-05-23 07:00:00', '2026-05-25 21:00:00', 19, 31, 1),
+(4054, 3024, '2026-05-25 07:00:00', '2026-05-27 21:00:00', 20, 32, 1),
+(4055, 3025, '2026-05-27 07:00:00', '2026-05-29 21:00:00', 21, 33, 1),
+(4056, 3026, '2026-05-29 07:00:00', '2026-05-31 21:00:00', 10, 22, 1),
+(4057, 3027, '2026-05-31 07:00:00', '2026-06-02 21:00:00', 11, 23, 1),
+(4058, 3028, '2026-06-02 07:00:00', '2026-06-04 21:00:00', 12, 24, 1),
+(4059, 3029, '2026-06-04 07:00:00', '2026-06-06 21:00:00', 13, 25, 1),
+(4060, 3030, '2026-06-06 07:00:00', '2026-06-08 21:00:00', 14, 26, 1),
+(4061, 3031, '2026-06-08 07:00:00', '2026-06-10 21:00:00', 15, 27, 1),
+(4062, 3032, '2026-06-10 07:00:00', '2026-06-12 21:00:00', 16, 28, 1),
+(4063, 3033, '2026-06-12 07:00:00', '2026-06-14 21:00:00', 17, 29, 1);
+
+INSERT INTO tour_pricing
+(tour_pricing_id, departure_id, price, participant_type, modified_date)
+VALUES
+(5114, 4024, 3200000, 'ADULTS', '2026-03-25 10:00:00'),
+(5115, 4024, 2400000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5116, 4024, 2600000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5117, 4044, 3400000, 'ADULTS', '2026-03-25 10:00:00'),
+(5118, 4044, 2550000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5119, 4044, 2760000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5120, 4025, 3245000, 'ADULTS', '2026-03-25 10:00:00'),
+(5121, 4025, 2432000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5122, 4025, 2635000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5123, 4045, 3445000, 'ADULTS', '2026-03-25 10:00:00'),
+(5124, 4045, 2582000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5125, 4045, 2795000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5126, 4026, 3290000, 'ADULTS', '2026-03-25 10:00:00'),
+(5127, 4026, 2464000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5128, 4026, 2670000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5129, 4046, 3490000, 'ADULTS', '2026-03-25 10:00:00'),
+(5130, 4046, 2614000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5131, 4046, 2830000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5132, 4027, 3335000, 'ADULTS', '2026-03-25 10:00:00'),
+(5133, 4027, 2496000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5134, 4027, 2705000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5135, 4047, 3535000, 'ADULTS', '2026-03-25 10:00:00'),
+(5136, 4047, 2646000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5137, 4047, 2865000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5138, 4028, 3380000, 'ADULTS', '2026-03-25 10:00:00'),
+(5139, 4028, 2528000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5140, 4028, 2740000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5141, 4048, 3580000, 'ADULTS', '2026-03-25 10:00:00'),
+(5142, 4048, 2678000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5143, 4048, 2900000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5144, 4029, 3425000, 'ADULTS', '2026-03-25 10:00:00'),
+(5145, 4029, 2560000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5146, 4029, 2775000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5147, 4049, 3625000, 'ADULTS', '2026-03-25 10:00:00'),
+(5148, 4049, 2710000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5149, 4049, 2935000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5150, 4030, 3470000, 'ADULTS', '2026-03-25 10:00:00'),
+(5151, 4030, 2592000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5152, 4030, 2810000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5153, 4050, 3670000, 'ADULTS', '2026-03-25 10:00:00'),
+(5154, 4050, 2742000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5155, 4050, 2970000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5156, 4031, 3515000, 'ADULTS', '2026-03-25 10:00:00'),
+(5157, 4031, 2624000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5158, 4031, 2845000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5159, 4051, 3715000, 'ADULTS', '2026-03-25 10:00:00'),
+(5160, 4051, 2774000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5161, 4051, 3005000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5162, 4032, 3560000, 'ADULTS', '2026-03-25 10:00:00'),
+(5163, 4032, 2656000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5164, 4032, 2880000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5165, 4052, 3760000, 'ADULTS', '2026-03-25 10:00:00'),
+(5166, 4052, 2806000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5167, 4052, 3040000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5168, 4033, 3605000, 'ADULTS', '2026-03-25 10:00:00'),
+(5169, 4033, 2688000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5170, 4033, 2915000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5171, 4053, 3805000, 'ADULTS', '2026-03-25 10:00:00'),
+(5172, 4053, 2838000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5173, 4053, 3075000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5174, 4034, 3650000, 'ADULTS', '2026-03-25 10:00:00'),
+(5175, 4034, 2720000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5176, 4034, 2950000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5177, 4054, 3850000, 'ADULTS', '2026-03-25 10:00:00'),
+(5178, 4054, 2870000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5179, 4054, 3110000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5180, 4035, 3695000, 'ADULTS', '2026-03-25 10:00:00'),
+(5181, 4035, 2752000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5182, 4035, 2985000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5183, 4055, 3895000, 'ADULTS', '2026-03-25 10:00:00'),
+(5184, 4055, 2902000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5185, 4055, 3145000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5186, 4036, 3740000, 'ADULTS', '2026-03-25 10:00:00'),
+(5187, 4036, 2784000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5188, 4036, 3020000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5189, 4056, 3940000, 'ADULTS', '2026-03-25 10:00:00'),
+(5190, 4056, 2934000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5191, 4056, 3180000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5192, 4037, 3785000, 'ADULTS', '2026-03-25 10:00:00'),
+(5193, 4037, 2816000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5194, 4037, 3055000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5195, 4057, 3985000, 'ADULTS', '2026-03-25 10:00:00'),
+(5196, 4057, 2966000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5197, 4057, 3215000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5198, 4038, 3830000, 'ADULTS', '2026-03-25 10:00:00'),
+(5199, 4038, 2848000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5200, 4038, 3090000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5201, 4058, 4030000, 'ADULTS', '2026-03-25 10:00:00'),
+(5202, 4058, 2998000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5203, 4058, 3250000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5204, 4039, 3875000, 'ADULTS', '2026-03-25 10:00:00'),
+(5205, 4039, 2880000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5206, 4039, 3125000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5207, 4059, 4075000, 'ADULTS', '2026-03-25 10:00:00'),
+(5208, 4059, 3030000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5209, 4059, 3285000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5210, 4040, 3920000, 'ADULTS', '2026-03-25 10:00:00'),
+(5211, 4040, 2912000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5212, 4040, 3160000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5213, 4060, 4120000, 'ADULTS', '2026-03-25 10:00:00'),
+(5214, 4060, 3062000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5215, 4060, 3320000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5216, 4041, 3965000, 'ADULTS', '2026-03-25 10:00:00'),
+(5217, 4041, 2944000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5218, 4041, 3195000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5219, 4061, 4165000, 'ADULTS', '2026-03-25 10:00:00'),
+(5220, 4061, 3094000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5221, 4061, 3355000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5222, 4042, 4010000, 'ADULTS', '2026-03-25 10:00:00'),
+(5223, 4042, 2976000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5224, 4042, 3230000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5225, 4062, 4210000, 'ADULTS', '2026-03-25 10:00:00'),
+(5226, 4062, 3126000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5227, 4062, 3390000, 'ELDERLY', '2026-03-25 10:00:00'),
+
+(5228, 4043, 4055000, 'ADULTS', '2026-03-25 10:00:00'),
+(5229, 4043, 3008000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5230, 4043, 3265000, 'ELDERLY', '2026-03-25 10:00:00'),
+(5231, 4063, 4255000, 'ADULTS', '2026-03-25 10:00:00'),
+(5232, 4063, 3158000, 'CHILDREN', '2026-03-25 10:00:00'),
+(5233, 4063, 3425000, 'ELDERLY', '2026-03-25 10:00:00');
+
+INSERT INTO tour_destinations (tour_id, destination_id, duration, sequence_order) VALUES
+(3014, 2001, 1, 1),
+(3014, 2002, 1, 2),
+(3014, 2008, 1, 3),
+(3015, 2006, 1, 1),
+(3015, 2001, 1, 2),
+(3015, 2012, 1, 3),
+(3016, 2003, 1, 1),
+(3016, 2010, 1, 2),
+(3016, 2009, 2, 3),
+(3017, 2005, 1, 1),
+(3017, 2004, 1, 2),
+(3017, 2002, 1, 3),
+(3018, 2011, 1, 1),
+(3018, 2001, 1, 2),
+(3018, 2012, 1, 3),
+(3019, 2004, 1, 1),
+(3019, 2008, 1, 2),
+(3019, 2002, 1, 3),
+(3020, 2009, 1, 1),
+(3020, 2003, 1, 2),
+(3020, 2010, 2, 3),
+(3021, 2008, 1, 1),
+(3021, 2001, 1, 2),
+(3021, 2006, 2, 3),
+(3022, 2002, 1, 1),
+(3022, 2008, 1, 2),
+(3022, 2001, 1, 3),
+(3023, 2014, 1, 1),
+(3023, 2012, 1, 2),
+(3023, 2013, 1, 3),
+(3024, 2015, 1, 1),
+(3024, 2005, 1, 2),
+(3024, 2014, 1, 3),
+(3025, 2007, 1, 1),
+(3025, 2013, 1, 2),
+(3025, 2014, 1, 3),
+(3026, 2010, 1, 1),
+(3026, 2003, 1, 2),
+(3026, 2004, 2, 3),
+(3027, 2009, 1, 1),
+(3027, 2010, 1, 2),
+(3027, 2004, 2, 3),
+(3028, 2013, 1, 1),
+(3028, 2014, 1, 2),
+(3028, 2012, 1, 3),
+(3029, 2006, 1, 1),
+(3029, 2007, 1, 2),
+(3029, 2001, 1, 3),
+(3030, 2008, 1, 1),
+(3030, 2002, 1, 2),
+(3030, 2004, 2, 3),
+(3031, 2001, 1, 1),
+(3031, 2002, 1, 2),
+(3031, 2008, 1, 3),
+(3032, 2014, 1, 1),
+(3032, 2011, 1, 2),
+(3032, 2012, 1, 3),
+(3033, 2012, 1, 1),
+(3033, 2013, 1, 2),
+(3033, 2014, 1, 3);
+
+INSERT INTO images (image_id, image_url, tour_id, destination_id) VALUES
+(7001, 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b', 3001, NULL),
+(7002, 'https://images.unsplash.com/photo-1528127269322-539801943592', 3001, NULL),
+(7003, 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e', 3003, NULL),
+(7004, 'https://images.unsplash.com/photo-1534447677768-be436bb09401', 3002, NULL),
+(7005, 'https://images.unsplash.com/photo-1540202404-1b927e27fa8b', NULL, 2002),
+(7006, 'https://images.unsplash.com/photo-1537996194471-e657df975ab4', NULL, 2004),
+(7011, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3004, NULL),
+(7012, 'https://images.unsplash.com/photo-1501785888041-af3ef285b470', 3005, NULL),
+(7013, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3006, NULL),
+(7014, 'https://images.unsplash.com/photo-1501785888041-af3ef285b470', 3007, NULL),
+(7015, 'https://images.unsplash.com/photo-1483729558449-99ef09a8c325', 3008, NULL),
+(7016, 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e', 3009, NULL),
+(7017, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3010, NULL),
+(7018, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3011, NULL),
+(7019, 'https://images.unsplash.com/photo-1501785888041-af3ef285b470', 3012, NULL),
+(7020, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3013, NULL),
+(7021, 'https://images.unsplash.com/photo-1528127269322-539801943592', NULL, 2001),
+(7022, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', NULL, 2006),
+(7023, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', NULL, 2007),
+(7024, 'https://images.unsplash.com/photo-1483729558449-99ef09a8c325', NULL, 2010),
+(7025, 'https://images.unsplash.com/photo-1501785888041-af3ef285b470', NULL, 2015);
+
+-- Images for newly added tours + missing destination thumbnails
+INSERT INTO images (image_id, image_url, tour_id, destination_id) VALUES
+(7026, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3014, NULL),
+(7027, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3014, NULL),
+(7028, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3015, NULL),
+(7029, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3015, NULL),
+(7030, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3016, NULL),
+(7031, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3016, NULL),
+(7032, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3017, NULL),
+(7033, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3017, NULL),
+(7034, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3018, NULL),
+(7035, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3018, NULL),
+(7036, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3019, NULL),
+(7037, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3019, NULL),
+(7038, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3020, NULL),
+(7039, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3020, NULL),
+(7040, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3021, NULL),
+(7041, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3021, NULL),
+(7042, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3022, NULL),
+(7043, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3022, NULL),
+(7044, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3023, NULL),
+(7045, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3023, NULL),
+(7046, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3024, NULL),
+(7047, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3024, NULL),
+(7048, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3025, NULL),
+(7049, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3025, NULL),
+(7050, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3026, NULL),
+(7051, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3026, NULL),
+(7052, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3027, NULL),
+(7053, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3027, NULL),
+(7054, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3028, NULL),
+(7055, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3028, NULL),
+(7056, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3029, NULL),
+(7057, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3029, NULL),
+(7058, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3030, NULL),
+(7059, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3030, NULL),
+(7060, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3031, NULL),
+(7061, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3031, NULL),
+(7062, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3032, NULL),
+(7063, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3032, NULL),
+(7064, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', 3033, NULL),
+(7065, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', 3033, NULL),
+
+(7066, 'https://images.unsplash.com/photo-1483729558449-99ef09a8c325', NULL, 2003),
+(7067, 'https://images.unsplash.com/photo-1528909514045-2fa4ac7a08ba', NULL, 2005),
+(7068, 'https://images.unsplash.com/photo-1528127269322-539801943592', NULL, 2008),
+(7069, 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee', NULL, 2009),
+(7070, 'https://images.unsplash.com/photo-1519681393784-d120267933ba', NULL, 2011),
+(7071, 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b', NULL, 2012),
+(7072, 'https://images.unsplash.com/photo-1537996194471-e657df975ab4', NULL, 2013),
+(7073, 'https://images.unsplash.com/photo-1540202404-1b927e27fa8b', NULL, 2014);
+
+INSERT INTO review (review_id, user_id, tour_id, rating, comment, review_date, is_active) VALUES
+(8001, 1002, 3001, 5, 'Tour rat vui, huong dan vien nhiet tinh.', '2026-03-25 20:00:00', 1),
+(8002, 1003, 3002, 4, 'Lich trinh on, do an ngon.', '2026-03-26 18:30:00', 1),
+(8003, 1002, 3003, 5, 'Nghi duong tuyet voi, bien dep.', '2026-03-27 19:45:00', 1),
+(8004, 1011, 3004, 5, 'Tour di san rat dang tien, lich trinh hop ly.', '2026-03-21 19:00:00', 1),
+(8005, 1012, 3005, 4, 'Bien dep, khach san on, an uong ngon.', '2026-03-22 21:15:00', 1),
+(8006, 1013, 3006, 5, 'Da Lat rat chill, huong dan vien than thien.', '2026-03-23 20:10:00', 1),
+(8007, 1014, 3007, 4, 'Fansipan tuyet, nhung can suc khoe.', '2026-03-24 18:40:00', 1),
+(8008, 1015, 3008, 5, 'Ninh Binh canh dep, chup anh rat dep.', '2026-03-25 17:30:00', 1),
+(8009, 1016, 3009, 5, 'Ky Co dep ngo ngang, hai san tuoi.', '2026-03-26 19:50:00', 1),
+(8010, 1017, 3010, 4, 'Mui Ne vui, doi cat dep, nen di som.', '2026-03-27 16:20:00', 1),
+(8011, 1018, 3011, 5, 'Cho noi rat thu vi, do an mien Tay ngon.', '2026-03-28 20:05:00', 1),
+(8012, 1002, 3012, 4, 'Phu hop di cuoi tuan, di chuyen tien.', '2026-03-29 18:00:00', 1),
+(8013, 1003, 3013, 5, 'Con Dao rat dep va yen binh.', '2026-03-30 21:00:00', 1);
+
+-- Extra reviews for newly added tours (for TourDetailDTO)
+INSERT INTO review (review_id, user_id, tour_id, rating, comment, review_date, is_active) VALUES
+(8014, 1002, 3014, 5, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8015, 1003, 3014, 5, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8016, 1003, 3015, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8017, 1002, 3015, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8018, 1002, 3016, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8019, 1003, 3016, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8020, 1003, 3017, 5, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8021, 1002, 3017, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8022, 1002, 3018, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8023, 1003, 3018, 5, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8024, 1003, 3019, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8025, 1002, 3019, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8026, 1002, 3020, 5, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8027, 1003, 3020, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8028, 1003, 3021, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8029, 1002, 3021, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8030, 1002, 3022, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8031, 1003, 3022, 5, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8032, 1003, 3023, 5, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8033, 1002, 3023, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8034, 1002, 3024, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8035, 1003, 3024, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8036, 1003, 3025, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8037, 1002, 3025, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8038, 1002, 3026, 5, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8039, 1003, 3026, 5, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8040, 1003, 3027, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8041, 1002, 3027, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8042, 1002, 3028, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8043, 1003, 3028, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8044, 1003, 3029, 5, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8045, 1002, 3029, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8046, 1002, 3030, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8047, 1003, 3030, 5, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8048, 1003, 3031, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8049, 1002, 3031, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8050, 1002, 3032, 5, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8051, 1003, 3032, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1),
+(8052, 1003, 3033, 4, 'Tour rat dang tien, nhieu trai nghiem.', '2026-04-10 18:00:00', 1),
+(8053, 1002, 3033, 4, 'Lich trinh on, nhan vien phuc vu tot.', '2026-04-11 21:30:00', 1);
+
+INSERT INTO favorite_tours (id, user_id, tour_id, added_date) VALUES
+(9001, 1002, 3001, '2026-03-28 09:00:00'),
+(9002, 1003, 3003, '2026-03-28 09:30:00'),
+(9003, 1011, 3004, '2026-03-28 10:00:00'),
+(9004, 1012, 3005, '2026-03-28 10:15:00'),
+(9005, 1013, 3006, '2026-03-28 10:30:00'),
+(9006, 1014, 3007, '2026-03-28 10:45:00'),
+(9007, 1015, 3008, '2026-03-28 11:00:00'),
+(9008, 1016, 3009, '2026-03-28 11:15:00'),
+(9009, 1017, 3010, '2026-03-28 11:30:00'),
+(9010, 1018, 3011, '2026-03-28 11:45:00'),
+(9011, 1002, 3005, '2026-03-29 09:15:00'),
+(9012, 1003, 3006, '2026-03-29 09:30:00');
+
+INSERT INTO favorite_tours (id, user_id, tour_id, added_date) VALUES
+(9013, 1002, 3014, '2026-04-12 09:00:00'),
+(9014, 1003, 3015, '2026-04-12 09:00:00'),
+(9015, 1002, 3016, '2026-04-12 09:00:00'),
+(9016, 1003, 3017, '2026-04-12 09:00:00'),
+(9017, 1002, 3018, '2026-04-12 09:00:00'),
+(9018, 1003, 3019, '2026-04-12 09:00:00'),
+(9019, 1002, 3020, '2026-04-12 09:00:00'),
+(9020, 1003, 3021, '2026-04-12 09:00:00'),
+(9021, 1002, 3022, '2026-04-12 09:00:00'),
+(9022, 1003, 3023, '2026-04-12 09:00:00'),
+(9023, 1002, 3024, '2026-04-12 09:00:00'),
+(9024, 1003, 3025, '2026-04-12 09:00:00'),
+(9025, 1002, 3026, '2026-04-12 09:00:00'),
+(9026, 1003, 3027, '2026-04-12 09:00:00'),
+(9027, 1002, 3028, '2026-04-12 09:00:00'),
+(9028, 1003, 3029, '2026-04-12 09:00:00'),
+(9029, 1002, 3030, '2026-04-12 09:00:00'),
+(9030, 1003, 3031, '2026-04-12 09:00:00'),
+(9031, 1002, 3032, '2026-04-12 09:00:00'),
+(9032, 1003, 3033, '2026-04-12 09:00:00');
+
